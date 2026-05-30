@@ -1,0 +1,2 @@
+# MemoAppTauri
+Memo App
