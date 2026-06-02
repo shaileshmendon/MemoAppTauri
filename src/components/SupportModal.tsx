@@ -19,7 +19,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 
 const DEVELOPER_UPI  = "ssmendon@icici";
 const DEVELOPER_NAME = "Memo";
-const APP_VERSION    = "1.0.0";
+const APP_VERSION    = "1.0.1";
 
 const FREE_FEATURES = [
   "Unlimited matters & clients",

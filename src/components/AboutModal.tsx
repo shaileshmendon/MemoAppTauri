@@ -30,7 +30,7 @@ export default function AboutModal({ onClose }: Props) {
               <span className="text-black font-bold text-4xl leading-none">M</span>
             </div>
             <h1 className="text-2xl font-bold tracking-tight">Memo</h1>
-            <p className="text-neutral-400 text-sm mt-1">Version 1.0.0</p>
+            <p className="text-neutral-400 text-sm mt-1">Version 1.0.1</p>
             {/* Free badge */}
             <span className="inline-block mt-2 px-3 py-0.5 bg-white/10 text-white text-xs font-semibold rounded-full tracking-wide">
               Free Forever
@@ -45,7 +45,7 @@ export default function AboutModal({ onClose }: Props) {
             </p>
 
             <div className="border-t border-neutral-100 pt-4 space-y-2">
-              <InfoRow label="Version"    value="1.0.0" />
+              <InfoRow label="Version"    value="1.0.1" />
               <InfoRow label="Platform"   value="macOS (Apple Silicon + Intel)" />
               <InfoRow label="Storage"    value="Local — SQLite (no cloud)" />
               <InfoRow label="Price"      value="₹0 — Free forever" />

@@ -845,7 +845,7 @@ export async function exportAllData(): Promise<string> {
   const manifest: BackupManifest = {
     version: BACKUP_VERSION,
     exportedAt: new Date().toISOString(),
-    appVersion: "1.0.0",
+    appVersion: "1.0.1",
     counts,
     data,
   };
