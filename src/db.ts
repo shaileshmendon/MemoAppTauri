@@ -756,6 +756,15 @@ export async function fetchContactPersons(
   );
 }
 
+export async function fetchContactPersonById(id: string): Promise<ContactPerson | null> {
+  const db = await getDb();
+  const rows = await db.select<ContactPerson[]>(
+    "SELECT * FROM contact_persons WHERE id = ?",
+    [id],
+  );
+  return rows[0] ?? null;
+}
+
 export async function insertContactPerson(cp: ContactPerson): Promise<void> {
   const db = await getDb();
   await db.execute(

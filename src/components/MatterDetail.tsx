@@ -3,8 +3,9 @@ import { Pencil, Trash2, Clock, Gavel, FileText, ChevronRight } from "lucide-rea
 import { fmtRef } from "../types";
 import {
   fetchTimeEntries, fetchAppearances, fetchInvoices, deleteMatter,
+  fetchContactPersonById,
 } from "../db";
-import type { Matter, TimeEntry, Appearance, Invoice } from "../types";
+import type { Matter, TimeEntry, Appearance, Invoice, ContactPerson } from "../types";
 import type { MatterTab } from "./MatterTabs";
 import MatterParties from "./MatterParties";
 import { format } from "date-fns";
@@ -32,12 +33,25 @@ export default function MatterDetail({ matter, onEdit, onDelete, onTabChange }: 
   const [appearances, setAppearances] = useState<Appearance[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [primaryClientContact, setPrimaryClientContact] = useState<ContactPerson | null>(null);
+  const [primaryFirmContact, setPrimaryFirmContact] = useState<ContactPerson | null>(null);
 
   useEffect(() => {
     fetchTimeEntries(matter.id).then(setTimeEntries);
     fetchAppearances(matter.id).then(setAppearances);
     fetchInvoices(matter.id).then(setInvoices);
-  }, [matter.id]);
+    // Fetch primary contacts if IDs are set
+    if (matter.primary_client_contact_id) {
+      fetchContactPersonById(matter.primary_client_contact_id).then(setPrimaryClientContact);
+    } else {
+      setPrimaryClientContact(null);
+    }
+    if (matter.primary_firm_contact_id) {
+      fetchContactPersonById(matter.primary_firm_contact_id).then(setPrimaryFirmContact);
+    } else {
+      setPrimaryFirmContact(null);
+    }
+  }, [matter.id, matter.primary_client_contact_id, matter.primary_firm_contact_id]);
 
   const totalTime = timeEntries.reduce((s, t) => s + t.duration_minutes, 0);
   const totalFees = appearances.reduce((s, a) => s + a.fee_amount, 0);
@@ -175,6 +189,23 @@ export default function MatterDetail({ matter, onEdit, onDelete, onTabChange }: 
         </div>
       )}
 
+      {/* Primary Contacts */}
+      {(primaryClientContact || primaryFirmContact) && (
+        <div className="px-6 mt-5">
+          <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
+            Primary Contacts
+          </p>
+          <div className="space-y-2">
+            {primaryClientContact && (
+              <ContactCard label="Client Contact" contact={primaryClientContact} />
+            )}
+            {primaryFirmContact && (
+              <ContactCard label="AOR / Firm Contact" contact={primaryFirmContact} />
+            )}
+          </div>
+        </div>
+      )}
+
       {matter.notes && (
         <div className="px-6 mt-4">
           <p className="text-xs text-neutral-400 mb-1">Notes</p>
@@ -212,6 +243,38 @@ function Field({ label, value }: { label: string; value: string }) {
     <div>
       <p className="text-xs text-neutral-400">{label}</p>
       <p className="text-sm text-neutral-800 font-medium">{value}</p>
+    </div>
+  );
+}
+
+function ContactCard({ label, contact }: { label: string; contact: ContactPerson }) {
+  return (
+    <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-4">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 mb-2">{label}</p>
+      <div className="flex flex-wrap gap-x-8 gap-y-2">
+        <div>
+          <p className="text-xs text-neutral-400">Name</p>
+          <p className="text-sm font-medium text-neutral-800">{contact.name}</p>
+        </div>
+        {contact.designation && (
+          <div>
+            <p className="text-xs text-neutral-400">Designation</p>
+            <p className="text-sm text-neutral-800">{contact.designation}</p>
+          </div>
+        )}
+        {contact.email && (
+          <div>
+            <p className="text-xs text-neutral-400">Email</p>
+            <p className="text-sm text-neutral-800">{contact.email}</p>
+          </div>
+        )}
+        {(contact.phone || contact.mobile) && (
+          <div>
+            <p className="text-xs text-neutral-400">Phone</p>
+            <p className="text-sm text-neutral-800">{contact.phone || contact.mobile}</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
