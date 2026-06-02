@@ -429,7 +429,6 @@ function InvoiceForm({ matter, onSave, onCancel }: {
   const [billable, setBillable]       = useState<BillableItem[]>([]);
   const [customItems, setCustom]      = useState<LineItem[]>([]);
   const [gstRate, setGstRate]         = useState(18);
-  const [, setRecipient]              = useState<RecipientType>("both"); // kept for compat
   const [invoiceNum, setInvoiceNum]   = useState(`INV-${format(new Date(), "yyyyMM")}-001`);
   const [invoiceDate, setInvDate]     = useState(today());
   const [dueDate, setDueDate]         = useState(format(addDays(new Date(), 30), "yyyy-MM-dd"));
@@ -454,13 +453,6 @@ function InvoiceForm({ matter, onSave, onCancel }: {
       }
       if (prof?.defaultGstRate !== undefined) {
         setGstRate(prof.defaultGstRate);
-      }
-      // Pre-fill recipient from matter setting
-      if (matter.invoice_recipient) {
-        setRecipient(matter.invoice_recipient);
-      } else {
-        // Auto-detect: if no firm, default to client
-        setRecipient(matter.firm_name ? "both" : "client");
       }
       const items: BillableItem[] = [
         ...apps.map((a: Appearance) => ({

@@ -296,14 +296,6 @@ export async function fetchTimeEntries(matterId: string): Promise<TimeEntry[]> {
   );
 }
 
-export async function fetchUnbilledTimeEntries(matterId: string): Promise<TimeEntry[]> {
-  const db = await getDb();
-  return db.select<TimeEntry[]>(
-    "SELECT * FROM time_entries WHERE matter_id = ? AND is_billable = 1 AND is_billed = 0 ORDER BY date DESC",
-    [matterId]
-  );
-}
-
 export async function fetchAllBillableTimeEntries(matterId: string): Promise<TimeEntry[]> {
   const db = await getDb();
   return db.select<TimeEntry[]>(
@@ -350,14 +342,6 @@ export async function fetchAppearances(matterId: string): Promise<Appearance[]> 
   const db = await getDb();
   return db.select<Appearance[]>(
     "SELECT * FROM appearances WHERE matter_id = ? ORDER BY date DESC",
-    [matterId]
-  );
-}
-
-export async function fetchUnbilledAppearances(matterId: string): Promise<Appearance[]> {
-  const db = await getDb();
-  return db.select<Appearance[]>(
-    "SELECT * FROM appearances WHERE matter_id = ? AND is_billed = 0 AND fee_amount > 0 ORDER BY date DESC",
     [matterId]
   );
 }
@@ -488,21 +472,6 @@ export async function insertPayment(p: Payment): Promise<void> {
 }
 
 /** Total cash received + TDS deducted across all payments for an invoice. */
-export async function fetchInvoiceSettlement(invoiceId: string): Promise<{
-  totalPaid: number;
-  totalTds: number;
-  totalSettled: number;  // paid + tds
-}> {
-  const db = await getDb();
-  const rows = await db.select<{ tp: number; tt: number }[]>(
-    `SELECT COALESCE(SUM(amount_paid),0) AS tp, COALESCE(SUM(tds_amount),0) AS tt
-     FROM payments WHERE invoice_id = ?`,
-    [invoiceId]
-  );
-  const { tp, tt } = rows[0] ?? { tp: 0, tt: 0 };
-  return { totalPaid: tp, totalTds: tt, totalSettled: tp + tt };
-}
-
 export async function deletePayment(id: string): Promise<void> {
   const db = await getDb();
   await db.execute("DELETE FROM payments WHERE id = ?", [id]);
@@ -785,14 +754,6 @@ export async function fetchContactPersons(
     "SELECT * FROM contact_persons WHERE entity_type = ? AND entity_id = ? ORDER BY created_at ASC",
     [entityType, entityId],
   );
-}
-
-export async function fetchContactPerson(id: string): Promise<ContactPerson | null> {
-  const db = await getDb();
-  const rows = await db.select<ContactPerson[]>(
-    "SELECT * FROM contact_persons WHERE id = ?", [id],
-  );
-  return rows[0] ?? null;
 }
 
 export async function insertContactPerson(cp: ContactPerson): Promise<void> {
