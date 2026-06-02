@@ -6,6 +6,7 @@ import {
   fetchAppearances, insertAppearance, updateAppearance, deleteAppearance,
 } from "../db";
 import type { Matter, Appearance, HearingType } from "../types";
+import { formatINR as inr } from "../lib/currency";
 
 interface Props { matter: Matter; }
 
@@ -15,12 +16,6 @@ const blank = (matterId: string, court?: string): Appearance => ({
   id: uuid(), matter_id: matterId, date: today(),
   court: court ?? "", hearing_type: "mention", fee_amount: 0, is_billed: 0, notes: "",
 });
-
-function inr(n: number) {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency", currency: "INR", maximumFractionDigits: 0,
-  }).format(n);
-}
 
 // ── Work type definitions ──────────────────────────────────────────────────
 

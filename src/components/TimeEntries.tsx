@@ -6,6 +6,7 @@ import {
   fetchTimeEntries, insertTimeEntry, updateTimeEntry, deleteTimeEntry,
 } from "../db";
 import type { Matter, TimeEntry } from "../types";
+import { formatINR as inr } from "../lib/currency";
 
 interface Props {
   matter: Matter;
@@ -23,10 +24,6 @@ const blank = (matterId: string): TimeEntry => ({
   is_billable: 1,
   is_billed: 0,
 });
-
-function inr(n: number) {
-  return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
-}
 
 export default function TimeEntries({ matter }: Props) {
   const [entries, setEntries] = useState<TimeEntry[]>([]);

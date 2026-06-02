@@ -8,6 +8,7 @@ import type { Matter, TimeEntry, Appearance, Invoice } from "../types";
 import type { MatterTab } from "./MatterTabs";
 import MatterParties from "./MatterParties";
 import { format } from "date-fns";
+import { formatINR as inr } from "../lib/currency";
 
 interface Props {
   matter: Matter;
@@ -18,10 +19,6 @@ interface Props {
 
 function fmt(iso: string) {
   try { return format(new Date(iso), "d MMM yyyy"); } catch { return iso; }
-}
-
-function inr(n: number) {
-  return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
 }
 
 const statusBadge: Record<string, string> = {

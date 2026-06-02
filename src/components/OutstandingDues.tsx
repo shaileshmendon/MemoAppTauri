@@ -15,14 +15,7 @@ import {
 } from "../db";
 import type { Matter, Invoice, PaymentMode, TdsSection } from "../types";
 import { TDS_SECTIONS } from "../types";
-
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-function inr(n: number) {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency", currency: "INR", maximumFractionDigits: 0,
-  }).format(n);
-}
+import { formatINR as inr } from "../lib/currency";
 
 const today = () => format(new Date(), "yyyy-MM-dd");
 

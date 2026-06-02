@@ -4,13 +4,7 @@ import type { Matter, Profile } from "../types";
 import { fmtRef } from "../types";
 import { format } from "date-fns";
 import { User, Building2, Phone, Mail, Landmark, BadgeCheck, PenLine, Globe, CreditCard } from "lucide-react";
-
-
-function inr(n: number) {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency", currency: "INR", maximumFractionDigits: 0,
-  }).format(n);
-}
+import { formatINR as inr } from "../lib/currency";
 
 // ── Profile card ─────────────────────────────────────────────────────────────
 

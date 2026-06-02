@@ -3,16 +3,7 @@ import {
 } from "@react-pdf/renderer";
 import type { Invoice, Matter, Profile, LineItem, MatterParty, InvoiceCustomization, ContactPerson } from "../types";
 import { formatParty, DEFAULT_CUSTOMIZATION } from "../types";
-
-// ── Helpers ─────────────────────────────────────────────────────────────────
-
-function inr(n: number): string {
-  // Use "Rs." prefix — built-in PDF fonts (Helvetica/Times) don't contain the ₹ glyph
-  const formatted = new Intl.NumberFormat("en-IN", {
-    maximumFractionDigits: 2, minimumFractionDigits: 2,
-  }).format(n);
-  return `Rs. ${formatted}`;
-}
+import { formatPDF as inr } from "../lib/currency";
 
 // ── Number to words (Indian system) ─────────────────────────────────────────
 

@@ -18,14 +18,9 @@ import type {
   LineItem, Appearance, TimeEntry, Profile, ContactPerson, InvoiceAddressMode,
 } from "../types";
 import InvoicePDF from "../pdf/InvoicePDF";
+import { formatCurrency as inr } from "../lib/currency";
 
 interface Props { matter: Matter; }
-
-function inr(n: number) {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency", currency: "INR", maximumFractionDigits: 2,
-  }).format(n);
-}
 
 const today  = () => format(new Date(), "yyyy-MM-dd");
 

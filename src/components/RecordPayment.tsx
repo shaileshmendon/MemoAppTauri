@@ -23,20 +23,7 @@ import {
 } from "../db";
 import type { Matter, Invoice, PaymentMode, TdsSection } from "../types";
 import { TDS_SECTIONS } from "../types";
-
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-function inr(n: number) {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency", currency: "INR", maximumFractionDigits: 0,
-  }).format(n);
-}
-
-function inr2(n: number) {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency", currency: "INR", maximumFractionDigits: 2,
-  }).format(n);
-}
+import { formatINR as inr, formatCurrency as inr2 } from "../lib/currency";
 
 const todayStr = () => format(new Date(), "yyyy-MM-dd");
 
