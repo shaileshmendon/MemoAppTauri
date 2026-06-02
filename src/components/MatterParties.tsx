@@ -12,6 +12,7 @@ import {
 } from "../db";
 import type { MatterParty } from "../types";
 import { formatParty } from "../types";
+import { useToast } from "./Toast";
 
 // ── Preset party types grouped by proceeding category ─────────────────────
 
@@ -101,6 +102,7 @@ interface Props {
 }
 
 export default function MatterParties({ matterId }: Props) {
+  const toast = useToast();
   const [parties, setParties] = useState<MatterParty[]>([]);
   const [editing, setEditing] = useState<MatterParty | null>(null);
   const [isNew, setIsNew]     = useState(false);
@@ -111,21 +113,32 @@ export default function MatterParties({ matterId }: Props) {
 
   const handleSave = async (p: MatterParty) => {
     if (!p.party_type.trim()) return;
-    if (isNew) {
-      await insertMatterParty(p);
-      setParties((prev) => [...prev, p].sort(sortParties));
-    } else {
-      await updateMatterParty(p);
-      setParties((prev) => prev.map((x) => (x.id === p.id ? p : x)).sort(sortParties));
+    try {
+      if (isNew) {
+        await insertMatterParty(p);
+        setParties((prev) => [...prev, p].sort(sortParties));
+        toast.success("Party saved");
+      } else {
+        await updateMatterParty(p);
+        setParties((prev) => prev.map((x) => (x.id === p.id ? p : x)).sort(sortParties));
+        toast.success("Party updated");
+      }
+      setEditing(null);
+      setIsNew(false);
+    } catch {
+      toast.error("Failed to save party");
     }
-    setEditing(null);
-    setIsNew(false);
   };
 
   const handleDelete = async (id: string) => {
-    await deleteMatterParty(id);
-    setParties((prev) => prev.filter((x) => x.id !== id));
-    if (editing?.id === id) { setEditing(null); setIsNew(false); }
+    try {
+      await deleteMatterParty(id);
+      setParties((prev) => prev.filter((x) => x.id !== id));
+      if (editing?.id === id) { setEditing(null); setIsNew(false); }
+      toast.success("Party removed");
+    } catch {
+      toast.error("Failed to remove party");
+    }
   };
 
   const startNew = () => {

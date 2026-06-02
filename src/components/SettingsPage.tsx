@@ -10,6 +10,7 @@ import InvoiceDesigner from "./InvoiceDesigner";
 import type { Profile, InvoiceTemplate, InvoiceCustomization } from "../types";
 import { DEFAULT_PROFILE } from "../types";
 import { INDIAN_STATES } from "../lib/constants/states";
+import { useToast } from "./Toast";
 
 interface Props {
   profile: Profile | null;
@@ -30,6 +31,7 @@ const SECTIONS = [
 type Section = typeof SECTIONS[number]["key"];
 
 export default function SettingsPage({ profile, onSaved, onLockChanged }: Props) {
+  const toast = useToast();
   const [form, setForm] = useState<Profile>({ ...DEFAULT_PROFILE });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -64,9 +66,11 @@ export default function SettingsPage({ profile, onSaved, onLockChanged }: Props)
         await writeTextFile(filePath, json);
         setBackupDone(true);
         setTimeout(() => setBackupDone(false), 3000);
+        toast.success("Backup exported");
       }
     } catch (err) {
       setBackupError(String(err));
+      toast.error("Export failed");
     } finally {
       setBackupLoading(false);
     }
@@ -108,9 +112,11 @@ export default function SettingsPage({ profile, onSaved, onLockChanged }: Props)
     setRestoreLoading(true);
     try {
       await importAllData(restoreJson);
+      toast.success("Data restored successfully");
       window.location.reload();
     } catch (err) {
       setRestoreError(String(err));
+      toast.error("Restore failed. The file may be corrupted.");
       setRestoreLoading(false);
       setRestoreConfirm(false);
     }
@@ -118,18 +124,30 @@ export default function SettingsPage({ profile, onSaved, onLockChanged }: Props)
 
   const handleLoadDemo = async () => {
     setDemoLoading(true);
-    await loadDemoData();
-    setDemoLoading(false);
-    setDemoConfirm(false);
-    window.location.reload();
+    try {
+      await loadDemoData();
+      toast.success("Demo data loaded");
+      setDemoLoading(false);
+      setDemoConfirm(false);
+      window.location.reload();
+    } catch {
+      toast.error("Failed to load demo data");
+      setDemoLoading(false);
+    }
   };
 
   const handleClearAll = async () => {
     setClearLoading(true);
-    await removeAllData();
-    setClearLoading(false);
-    setClearConfirm(false);
-    window.location.reload();
+    try {
+      await removeAllData();
+      toast.success("All data cleared");
+      setClearLoading(false);
+      setClearConfirm(false);
+      window.location.reload();
+    } catch {
+      toast.error("Failed to clear data");
+      setClearLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -140,11 +158,17 @@ export default function SettingsPage({ profile, onSaved, onLockChanged }: Props)
 
   const handleSave = async () => {
     setSaving(true);
-    await saveProfile(form);
-    onSaved(form);
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+    try {
+      await saveProfile(form);
+      onSaved(form);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+      toast.success("Profile saved");
+    } catch {
+      toast.error("Failed to save profile");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const inp = "w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-neutral-800 focus:ring-1 focus:ring-neutral-200 bg-white";

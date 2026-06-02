@@ -16,6 +16,7 @@ import {
 import type { Matter, Invoice, PaymentMode, TdsSection } from "../types";
 import { TDS_SECTIONS } from "../types";
 import { formatINR as inr } from "../lib/currency";
+import { useToast } from "./Toast";
 
 const today = () => format(new Date(), "yyyy-MM-dd");
 
@@ -86,6 +87,7 @@ const statusLabel: Record<string, string> = {
 type Tab = "outstanding" | "payments";
 
 export default function OutstandingDues() {
+  const toast = useToast();
   const [tab, setTab] = useState<Tab>("outstanding");
   const [invoices, setInvoices] = useState<UnpaidInvoiceRow[]>([]);
   const [payments, setPayments] = useState<PaymentLogRow[]>([]);
@@ -125,8 +127,13 @@ export default function OutstandingDues() {
   };
 
   const handleDeleteAdvance = async (id: string) => {
-    await deleteAdvancePayment(id);
-    setPayments((prev) => prev.filter((p) => p.id !== id));
+    try {
+      await deleteAdvancePayment(id);
+      setPayments((prev) => prev.filter((p) => p.id !== id));
+      toast.success("Advance deleted");
+    } catch {
+      toast.error("Failed to delete advance");
+    }
   };
 
   if (loading) {
@@ -423,6 +430,7 @@ function PaymentForm({
   onSaved: () => void;
   onCancel: () => void;
 }) {
+  const toast = useToast();
   const [payType, setPayType]       = useState<PayType>("invoice");
   const [matters, setMatters]       = useState<Matter[]>([]);
   const [matterId, setMatterId]     = useState("");
@@ -515,7 +523,10 @@ function PaymentForm({
         };
         await insertAdvancePayment(adv);
       }
+      toast.success("Payment recorded");
       onSaved();
+    } catch {
+      toast.error("Failed to record payment");
     } finally {
       setSaving(false);
     }

@@ -10,6 +10,7 @@ import type { MatterTab } from "./MatterTabs";
 import MatterParties from "./MatterParties";
 import { format } from "date-fns";
 import { formatINR as inr } from "../lib/currency";
+import { useToast } from "./Toast";
 
 interface Props {
   matter: Matter;
@@ -29,6 +30,7 @@ const statusBadge: Record<string, string> = {
 };
 
 export default function MatterDetail({ matter, onEdit, onDelete, onTabChange }: Props) {
+  const toast = useToast();
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
   const [appearances, setAppearances] = useState<Appearance[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -58,8 +60,13 @@ export default function MatterDetail({ matter, onEdit, onDelete, onTabChange }: 
   const totalInvoiced = invoices.reduce((s, i) => s + i.total_amount, 0);
 
   const handleDelete = async () => {
-    await deleteMatter(matter.id);
-    onDelete();
+    try {
+      await deleteMatter(matter.id);
+      toast.success("Matter deleted");
+      onDelete();
+    } catch {
+      toast.error("Failed to delete matter");
+    }
   };
 
   return (

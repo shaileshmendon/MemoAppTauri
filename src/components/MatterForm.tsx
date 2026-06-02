@@ -9,6 +9,7 @@ import {
 import type { Matter, MatterType, MatterStatus, RecipientType, Client, Firm, ContactPerson } from "../types";
 import { Search, Plus, Check, Database, X, ChevronDown } from "lucide-react";
 import { INDIAN_STATES } from "../lib/constants/states";
+import { useToast } from "./Toast";
 
 interface Props {
   initial?: Matter;
@@ -161,6 +162,7 @@ function SaveToDB({
 // ── Main form ─────────────────────────────────────────────────────────────────
 
 export default function MatterForm({ initial, onSave, onCancel }: Props) {
+  const toast = useToast();
   const [form, setForm] = useState<Omit<Matter, "id" | "created_at">>(
     initial ? { ...initial } : { ...blank }
   );
@@ -251,18 +253,23 @@ export default function MatterForm({ initial, onSave, onCancel }: Props) {
 
   // ── Save new client to DB ─────────────────────────────────────────────────
   const saveNewClient = async () => {
-    const now = new Date().toISOString();
-    const newClient: Client = {
-      id: uuid(), name: form.client_name!,
-      email: form.client_email || undefined,
-      gstin: form.client_gstin || undefined,
-      state: form.client_state || undefined,
-      created_at: now,
-    };
-    await insertClient(newClient);
-    const list = await reloadClients();
-    const saved = list.find(c => c.id === newClient.id);
-    if (saved) { setLinkedClientId(saved.id); setClientSaved(true); }
+    try {
+      const now = new Date().toISOString();
+      const newClient: Client = {
+        id: uuid(), name: form.client_name!,
+        email: form.client_email || undefined,
+        gstin: form.client_gstin || undefined,
+        state: form.client_state || undefined,
+        created_at: now,
+      };
+      await insertClient(newClient);
+      const list = await reloadClients();
+      const saved = list.find(c => c.id === newClient.id);
+      if (saved) { setLinkedClientId(saved.id); setClientSaved(true); }
+      toast.success("Client saved to directory");
+    } catch {
+      toast.error("Failed to save client");
+    }
   };
 
   // ── Pick existing firm ────────────────────────────────────────────────────
@@ -287,18 +294,23 @@ export default function MatterForm({ initial, onSave, onCancel }: Props) {
 
   // ── Save new firm to DB ───────────────────────────────────────────────────
   const saveNewFirm = async () => {
-    const now = new Date().toISOString();
-    const newFirm: Firm = {
-      id: uuid(), name: form.firm_name!,
-      email: form.firm_email || undefined,
-      gstin: form.firm_gstin || undefined,
-      state: form.firm_state || undefined,
-      created_at: now,
-    };
-    await insertFirm(newFirm);
-    const list = await reloadFirms();
-    const saved = list.find(f => f.id === newFirm.id);
-    if (saved) { setLinkedFirmId(saved.id); setFirmSaved(true); }
+    try {
+      const now = new Date().toISOString();
+      const newFirm: Firm = {
+        id: uuid(), name: form.firm_name!,
+        email: form.firm_email || undefined,
+        gstin: form.firm_gstin || undefined,
+        state: form.firm_state || undefined,
+        created_at: now,
+      };
+      await insertFirm(newFirm);
+      const list = await reloadFirms();
+      const saved = list.find(f => f.id === newFirm.id);
+      if (saved) { setLinkedFirmId(saved.id); setFirmSaved(true); }
+      toast.success("AOR / Firm saved to directory");
+    } catch {
+      toast.error("Failed to save firm");
+    }
   };
 
   // ── Submit ────────────────────────────────────────────────────────────────
@@ -310,10 +322,11 @@ export default function MatterForm({ initial, onSave, onCancel }: Props) {
       const matter: Matter = initial
         ? { ...initial, ...form }
         : { ...form, id: uuid(), created_at: new Date().toISOString() };
-      if (initial) { await updateMatter(matter); onSave(matter); }
-      else         { const saved = await insertMatter(matter); onSave(saved); }
+      if (initial) { await updateMatter(matter); toast.success("Matter updated"); onSave(matter); }
+      else         { const saved = await insertMatter(matter); toast.success("Matter saved"); onSave(saved); }
     } catch (err) {
       setError(String(err));
+      toast.error("Failed to save matter. Please try again.");
     } finally {
       setSaving(false);
     }

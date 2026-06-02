@@ -7,6 +7,7 @@ import {
 } from "../db";
 import type { Matter, TimeEntry } from "../types";
 import { formatINR as inr } from "../lib/currency";
+import { useToast } from "./Toast";
 
 interface Props {
   matter: Matter;
@@ -26,6 +27,7 @@ const blank = (matterId: string): TimeEntry => ({
 });
 
 export default function TimeEntries({ matter }: Props) {
+  const toast = useToast();
   const [entries, setEntries] = useState<TimeEntry[]>([]);
   const [editing, setEditing] = useState<TimeEntry | null>(null);
   const [isNew, setIsNew] = useState(false);
@@ -58,20 +60,31 @@ export default function TimeEntries({ matter }: Props) {
   };
 
   const handleSave = async (t: TimeEntry) => {
-    if (isNew) {
-      await insertTimeEntry(t);
-      setEntries((e) => [t, ...e]);
-    } else {
-      await updateTimeEntry(t);
-      setEntries((e) => e.map((x) => (x.id === t.id ? t : x)));
+    try {
+      if (isNew) {
+        await insertTimeEntry(t);
+        setEntries((e) => [t, ...e]);
+        toast.success("Time entry saved");
+      } else {
+        await updateTimeEntry(t);
+        setEntries((e) => e.map((x) => (x.id === t.id ? t : x)));
+        toast.success("Time entry updated");
+      }
+      setEditing(null);
+      setIsNew(false);
+    } catch {
+      toast.error("Failed to save time entry");
     }
-    setEditing(null);
-    setIsNew(false);
   };
 
   const handleDelete = async (id: string) => {
-    await deleteTimeEntry(id);
-    setEntries((e) => e.filter((x) => x.id !== id));
+    try {
+      await deleteTimeEntry(id);
+      setEntries((e) => e.filter((x) => x.id !== id));
+      toast.success("Time entry deleted");
+    } catch {
+      toast.error("Failed to delete time entry");
+    }
   };
 
   const totalMins = entries.reduce((s, t) => s + t.duration_minutes, 0);

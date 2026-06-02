@@ -17,6 +17,7 @@ import {
 } from "../db";
 import type { ContactPerson } from "../types";
 import type { MacContact } from "../types/contacts";
+import { useToast } from "./Toast";
 
 // ── Contacts picker modal (self-contained, reused from ContactList pattern) ───
 
@@ -134,6 +135,7 @@ function ContactPersonForm({
     address:     initial?.address      ?? "",
     notes:       initial?.notes        ?? "",
   });
+  const toast = useToast();
   const [saving, setSaving]           = useState(false);
   const [showPicker, setShowPicker]   = useState(false);
   const [importedFrom, setImportedFrom] = useState("");
@@ -159,13 +161,18 @@ function ContactPersonForm({
   const handleSave = async () => {
     if (!form.name.trim()) return;
     setSaving(true);
-    const cp: ContactPerson = initial
-      ? { ...initial, ...form, updated_at: now }
-      : { ...form, id: uuid(), entity_type: entityType, entity_id: entityId, apple_contact_id: undefined, created_at: now, updated_at: now };
-    if (initial) await updateContactPerson(cp);
-    else         await insertContactPerson(cp);
-    onSave(cp);
-    setSaving(false);
+    try {
+      const cp: ContactPerson = initial
+        ? { ...initial, ...form, updated_at: now }
+        : { ...form, id: uuid(), entity_type: entityType, entity_id: entityId, apple_contact_id: undefined, created_at: now, updated_at: now };
+      if (initial) { await updateContactPerson(cp); toast.success("Contact updated"); }
+      else         { await insertContactPerson(cp); toast.success("Contact saved"); }
+      onSave(cp);
+    } catch {
+      toast.error("Failed to save contact");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const inp = "w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-neutral-800 focus:ring-1 focus:ring-neutral-200 bg-white";
@@ -255,6 +262,7 @@ interface Props {
 }
 
 export default function ContactPersonsPanel({ entityType, entityId }: Props) {
+  const toast = useToast();
   const [persons, setPersons]           = useState<ContactPerson[]>([]);
   const [showForm, setShowForm]         = useState(false);
   const [editingId, setEditingId]       = useState<string | null>(null);
@@ -276,9 +284,14 @@ export default function ContactPersonsPanel({ entityType, entityId }: Props) {
   };
 
   const handleDelete = async (id: string) => {
-    await deleteContactPerson(id);
-    setPersons(prev => prev.filter(p => p.id !== id));
-    setConfirmDelete(null);
+    try {
+      await deleteContactPerson(id);
+      setPersons(prev => prev.filter(p => p.id !== id));
+      setConfirmDelete(null);
+      toast.success("Contact deleted");
+    } catch {
+      toast.error("Failed to delete contact");
+    }
   };
 
   return (

@@ -24,6 +24,7 @@ import {
 import type { Matter, Invoice, PaymentMode, TdsSection } from "../types";
 import { TDS_SECTIONS } from "../types";
 import { formatINR as inr, formatCurrency as inr2 } from "../lib/currency";
+import { useToast } from "./Toast";
 
 const todayStr = () => format(new Date(), "yyyy-MM-dd");
 
@@ -132,6 +133,7 @@ function ReconciliationBanner({
 // ── Main component ─────────────────────────────────────────────────────────
 
 export default function RecordPayment() {
+  const toast = useToast();
   const [unpaidInvoices, setUnpaidInvoices] = useState<UnpaidInvoiceRow[]>([]);
   const [matters, setMatters]               = useState<Matter[]>([]);
   const [selection, setSelection]           = useState<Selection | null>(null);
@@ -247,6 +249,11 @@ export default function RecordPayment() {
       setTdsManual(false);
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
+      if (selection.kind === "invoice") {
+        toast.success("Payment recorded");
+      } else {
+        toast.success("Advance recorded");
+      }
       await reload();
       // If the invoice is now paid, clear selection
       if (selection.kind === "invoice") {
@@ -254,6 +261,8 @@ export default function RecordPayment() {
         const settled = amount !== "" ? +amount + tdsAmt : 0;
         if (settled >= selection.invoice.total_amount) setSelection(null);
       }
+    } catch {
+      toast.error("Failed to record payment. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -634,7 +643,7 @@ export default function RecordPayment() {
                       payment={p}
                       onDeleteAdvance={
                         p.type === "advance"
-                          ? async () => { await deleteAdvancePayment(p.id); reload(); }
+                          ? async () => { await deleteAdvancePayment(p.id); toast.success("Advance deleted"); reload(); }
                           : undefined
                       }
                     />

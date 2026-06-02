@@ -7,6 +7,7 @@ import {
 } from "../db";
 import type { Matter, Appearance, HearingType } from "../types";
 import { formatINR as inr } from "../lib/currency";
+import { useToast } from "./Toast";
 
 interface Props { matter: Matter; }
 
@@ -74,6 +75,7 @@ const BADGE: Record<HearingType, string> = {
 // ── Component ──────────────────────────────────────────────────────────────
 
 export default function Appearances({ matter }: Props) {
+  const toast = useToast();
   const [appearances, setAppearances] = useState<Appearance[]>([]);
   const [editing, setEditing] = useState<Appearance | null>(null);
   const [isNew, setIsNew] = useState(false);
@@ -83,21 +85,32 @@ export default function Appearances({ matter }: Props) {
   }, [matter.id]);
 
   const handleSave = async (a: Appearance) => {
-    if (isNew) {
-      await insertAppearance(a);
-      setAppearances((prev) => [a, ...prev]);
-    } else {
-      await updateAppearance(a);
-      setAppearances((prev) => prev.map((x) => (x.id === a.id ? a : x)));
+    try {
+      if (isNew) {
+        await insertAppearance(a);
+        setAppearances((prev) => [a, ...prev]);
+        toast.success("Appearance saved");
+      } else {
+        await updateAppearance(a);
+        setAppearances((prev) => prev.map((x) => (x.id === a.id ? a : x)));
+        toast.success("Appearance updated");
+      }
+      setEditing(null);
+      setIsNew(false);
+    } catch {
+      toast.error("Failed to save appearance");
     }
-    setEditing(null);
-    setIsNew(false);
   };
 
   const handleDelete = async (id: string) => {
-    await deleteAppearance(id);
-    setAppearances((prev) => prev.filter((x) => x.id !== id));
-    if (editing?.id === id) { setEditing(null); setIsNew(false); }
+    try {
+      await deleteAppearance(id);
+      setAppearances((prev) => prev.filter((x) => x.id !== id));
+      if (editing?.id === id) { setEditing(null); setIsNew(false); }
+      toast.success("Appearance deleted");
+    } catch {
+      toast.error("Failed to delete appearance");
+    }
   };
 
   const total = appearances.reduce((s, a) => s + a.fee_amount, 0);

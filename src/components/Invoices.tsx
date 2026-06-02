@@ -19,6 +19,7 @@ import type {
 } from "../types";
 import InvoicePDF from "../pdf/InvoicePDF";
 import { formatCurrency as inr } from "../lib/currency";
+import { useToast } from "./Toast";
 
 interface Props { matter: Matter; }
 
@@ -44,6 +45,7 @@ function calcGST(subtotal: number, gstRate: number, firmState?: string, clientSt
 // ── Main component ─────────────────────────────────────────────────────────
 
 export default function Invoices({ matter }: Props) {
+  const toast = useToast();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -55,32 +57,47 @@ export default function Invoices({ matter }: Props) {
   }, [matter.id]);
 
   const handleSave = async (inv: Invoice, billedAppIds: string[], billedTimeIds: string[]) => {
-    await insertInvoice(inv);
-    if (inv.status === "sent") {
-      await markAppearancesBilled(billedAppIds);
-      await markTimeEntriesBilled(billedTimeIds);
+    try {
+      await insertInvoice(inv);
+      if (inv.status === "sent") {
+        await markAppearancesBilled(billedAppIds);
+        await markTimeEntriesBilled(billedTimeIds);
+      }
+      setInvoices(prev => [inv, ...prev]);
+      setShowForm(false);
+      toast.success("Invoice created");
+    } catch {
+      toast.error("Failed to create invoice");
     }
-    setInvoices(prev => [inv, ...prev]);
-    setShowForm(false);
   };
 
   const handleDelete = async (id: string) => {
-    await deleteInvoice(id);
-    setInvoices(prev => prev.filter(x => x.id !== id));
-    if (expanded === id) setExpanded(null);
+    try {
+      await deleteInvoice(id);
+      setInvoices(prev => prev.filter(x => x.id !== id));
+      if (expanded === id) setExpanded(null);
+      toast.success("Invoice deleted");
+    } catch {
+      toast.error("Failed to delete invoice");
+    }
   };
 
   const handleStatusChange = async (inv: Invoice, status: InvoiceStatus) => {
-    const updated = { ...inv, status };
-    await updateInvoice(updated);
-    setInvoices(prev => prev.map(x => x.id === inv.id ? updated : x));
-    // If issuing a draft, mark items billed now
-    if (status === "sent" && inv.status === "draft") {
-      const lineItems: LineItem[] = inv.line_items_data ? JSON.parse(inv.line_items_data) : [];
-      const appIds  = lineItems.filter(li => li.sourceId && li.type === "appearance").map(li => li.sourceId!);
-      const timeIds = lineItems.filter(li => li.sourceId && li.type === "time").map(li => li.sourceId!);
-      await markAppearancesBilled(appIds);
-      await markTimeEntriesBilled(timeIds);
+    try {
+      const updated = { ...inv, status };
+      await updateInvoice(updated);
+      setInvoices(prev => prev.map(x => x.id === inv.id ? updated : x));
+      toast.success("Invoice marked as " + status);
+      // If issuing a draft, mark items billed now
+      if (status === "sent" && inv.status === "draft") {
+        const lineItems: LineItem[] = inv.line_items_data ? JSON.parse(inv.line_items_data) : [];
+        const appIds  = lineItems.filter(li => li.sourceId && li.type === "appearance").map(li => li.sourceId!);
+        const timeIds = lineItems.filter(li => li.sourceId && li.type === "time").map(li => li.sourceId!);
+        await markAppearancesBilled(appIds);
+        await markTimeEntriesBilled(timeIds);
+      }
+    } catch {
+      toast.error("Failed to update invoice");
     }
   };
 
@@ -169,6 +186,7 @@ function InvoiceRow({ invoice, matter, profile, expanded, onToggle, onStatusChan
   onStatusChange: (s: InvoiceStatus) => void;
   onDelete: () => void;
 }) {
+  const toast = useToast();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [showPayForm, setShowPayForm] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
@@ -204,9 +222,11 @@ function InvoiceRow({ invoice, matter, profile, expanded, onToggle, onStatusChan
       });
       if (filePath) {
         await writeFile(filePath, uint8);
+        toast.success("PDF saved");
       }
     } catch (err) {
       console.error("PDF generation failed:", err);
+      toast.error("PDF generation failed. Please try again.");
     } finally {
       setDownloading(false);
     }
@@ -223,11 +243,16 @@ function InvoiceRow({ invoice, matter, profile, expanded, onToggle, onStatusChan
     ? JSON.parse(invoice.line_items_data) : [];
 
   const handleAddPayment = async (p: Payment) => {
-    await insertPayment(p);
-    setPayments(prev => [...prev, p]);
-    const settled = totalSettled + p.amount_paid + (p.tds_amount ?? 0);
-    onStatusChange(settled >= invoice.total_amount ? "paid" : "partially_paid");
-    setShowPayForm(false);
+    try {
+      await insertPayment(p);
+      setPayments(prev => [...prev, p]);
+      const settled = totalSettled + p.amount_paid + (p.tds_amount ?? 0);
+      onStatusChange(settled >= invoice.total_amount ? "paid" : "partially_paid");
+      setShowPayForm(false);
+      toast.success("Payment recorded");
+    } catch {
+      toast.error("Failed to record payment");
+    }
   };
 
   return (

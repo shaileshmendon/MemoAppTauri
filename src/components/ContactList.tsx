@@ -17,6 +17,7 @@ import {
 } from "../db";
 import { INDIAN_STATES, matchState } from "../lib/constants/states";
 import type { MacContact } from "../types/contacts";
+import { useToast } from "./Toast";
 
 type ContactType = "client" | "firm";
 type Contact = Client | Firm;
@@ -207,6 +208,7 @@ function ContactPickerModal({
 // ── Main list component ────────────────────────────────────────────────────────
 
 export default function ContactList({ type }: Props) {
+  const toast = useToast();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Contact | null>(null);
@@ -233,24 +235,35 @@ export default function ContactList({ type }: Props) {
   const handleEdit = (c: Contact) => { setSelected(c); setIsNew(false); setShowForm(true); };
 
   const handleSave = async (c: Contact) => {
-    if (isNew) {
-      if (type === "client") await insertClient(c as Client);
-      else await insertFirm(c as Firm);
-    } else {
-      if (type === "client") await updateClient(c as Client);
-      else await updateFirm(c as Firm);
+    try {
+      if (isNew) {
+        if (type === "client") await insertClient(c as Client);
+        else await insertFirm(c as Firm);
+        toast.success(type === "client" ? "Client saved" : "AOR / Firm saved");
+      } else {
+        if (type === "client") await updateClient(c as Client);
+        else await updateFirm(c as Firm);
+        toast.success(type === "client" ? "Client updated" : "AOR / Firm updated");
+      }
+      await reload();
+      setShowForm(false);
+      setSelected(c);
+    } catch {
+      toast.error("Failed to save");
     }
-    await reload();
-    setShowForm(false);
-    setSelected(c);
   };
 
   const handleDelete = async (id: string) => {
-    if (type === "client") await deleteClient(id);
-    else await deleteFirm(id);
-    setConfirmDelete(null);
-    if (selected?.id === id) { setSelected(null); setShowForm(false); }
-    await reload();
+    try {
+      if (type === "client") await deleteClient(id);
+      else await deleteFirm(id);
+      setConfirmDelete(null);
+      if (selected?.id === id) { setSelected(null); setShowForm(false); }
+      await reload();
+      toast.success(type === "client" ? "Client deleted" : "AOR / Firm deleted");
+    } catch {
+      toast.error("Failed to delete");
+    }
   };
 
   return (
@@ -503,6 +516,7 @@ function ContactForm({
   type: ContactType; initial?: Contact;
   onSave: (c: Contact) => void; onCancel: () => void;
 }) {
+  const toast = useToast();
   const label = type === "client" ? "Client" : "Firm / Advocate";
   const [form, setForm] = useState({
     name:    initial?.name    ?? "",
@@ -558,6 +572,9 @@ function ContactForm({
         ? { ...initial, ...form }
         : { ...form, id: uuid(), created_at: new Date().toISOString() };
       await onSave(contact);
+      if (importedFrom) toast.success("Contact imported");
+    } catch {
+      toast.error("Failed to import contact");
     } finally {
       setSaving(false);
     }
