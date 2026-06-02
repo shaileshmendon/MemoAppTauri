@@ -15,64 +15,14 @@ import {
   fetchFirms, insertFirm, updateFirm, deleteFirm,
   fetchMattersByClientName, fetchMattersByFirmName,
 } from "../db";
+import { INDIAN_STATES, matchState } from "../lib/constants/states";
+import type { MacContact } from "../types/contacts";
 
 type ContactType = "client" | "firm";
 type Contact = Client | Firm;
 
 interface Props {
   type: ContactType;
-}
-
-// ── macOS contact shape returned by the Rust command ──────────────────────────
-
-interface MacContact {
-  name: string;
-  givenName: string;
-  familyName: string;
-  organization: string;
-  jobTitle: string;
-  emails: string[];
-  phones: string[];
-  addressStreet: string;
-  addressCity: string;
-  addressState: string;
-  addressPostal: string;
-  addressCountry: string;
-}
-
-// ── Indian states list (shared across forms) ──────────────────────────────────
-
-const INDIAN_STATES = [
-  "Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh","Goa","Gujarat",
-  "Haryana","Himachal Pradesh","Jharkhand","Karnataka","Kerala","Madhya Pradesh",
-  "Maharashtra","Manipur","Meghalaya","Mizoram","Nagaland","Odisha","Punjab","Rajasthan",
-  "Sikkim","Tamil Nadu","Telangana","Tripura","Uttar Pradesh","Uttarakhand","West Bengal",
-  "Delhi","Jammu & Kashmir","Ladakh","Puducherry","Chandigarh","Other",
-];
-
-/** Attempt to match a raw state string (e.g. "Maharashtra", "MH") to the list. */
-function matchState(raw: string): string {
-  if (!raw) return "";
-  const lower = raw.toLowerCase().trim();
-  // Direct match
-  const direct = INDIAN_STATES.find(s => s.toLowerCase() === lower);
-  if (direct) return direct;
-  // Common abbreviations
-  const abbrevMap: Record<string, string> = {
-    mh: "Maharashtra", dl: "Delhi", ka: "Karnataka", tn: "Tamil Nadu",
-    kl: "Kerala", gj: "Gujarat", rj: "Rajasthan", up: "Uttar Pradesh",
-    wb: "West Bengal", ap: "Andhra Pradesh", ts: "Telangana", mp: "Madhya Pradesh",
-    pb: "Punjab", hr: "Haryana", br: "Bihar", jh: "Jharkhand", or: "Odisha",
-    od: "Odisha", ga: "Goa", hp: "Himachal Pradesh", uk: "Uttarakhand",
-    ua: "Uttarakhand", cg: "Chhattisgarh", ct: "Chhattisgarh",
-    jk: "Jammu & Kashmir", la: "Ladakh", py: "Puducherry", ch: "Chandigarh",
-    mn: "Manipur", ml: "Meghalaya", mz: "Mizoram", nl: "Nagaland",
-    ar: "Arunachal Pradesh", sk: "Sikkim", tr: "Tripura", as: "Assam",
-  };
-  if (abbrevMap[lower]) return abbrevMap[lower];
-  // Partial match (starts with)
-  const partial = INDIAN_STATES.find(s => s.toLowerCase().startsWith(lower));
-  return partial ?? "";
 }
 
 // ── Contact picker modal ───────────────────────────────────────────────────────

@@ -16,16 +16,7 @@ import {
   updateContactPerson, deleteContactPerson,
 } from "../db";
 import type { ContactPerson } from "../types";
-
-// ── macOS contact shape (same as in ContactList.tsx) ─────────────────────────
-
-interface MacContact {
-  name: string; givenName: string; familyName: string;
-  organization: string; jobTitle: string;
-  emails: string[]; phones: string[];
-  addressStreet: string; addressCity: string;
-  addressState: string; addressPostal: string; addressCountry: string;
-}
+import type { MacContact } from "../types/contacts";
 
 // ── Contacts picker modal (self-contained, reused from ContactList pattern) ───
 

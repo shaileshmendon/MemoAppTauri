@@ -8,20 +8,13 @@ import {
 } from "../db";
 import type { Matter, MatterType, MatterStatus, RecipientType, Client, Firm, ContactPerson } from "../types";
 import { Search, Plus, Check, Database, X, ChevronDown } from "lucide-react";
+import { INDIAN_STATES } from "../lib/constants/states";
 
 interface Props {
   initial?: Matter;
   onSave: (m: Matter) => void;
   onCancel: () => void;
 }
-
-const INDIAN_STATES = [
-  "Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh","Goa","Gujarat",
-  "Haryana","Himachal Pradesh","Jharkhand","Karnataka","Kerala","Madhya Pradesh",
-  "Maharashtra","Manipur","Meghalaya","Mizoram","Nagaland","Odisha","Punjab","Rajasthan",
-  "Sikkim","Tamil Nadu","Telangana","Tripura","Uttar Pradesh","Uttarakhand","West Bengal",
-  "Delhi","Jammu & Kashmir","Ladakh","Puducherry","Chandigarh","Other",
-];
 
 const blank: Omit<Matter, "id" | "created_at"> = {
   case_title: "", client_name: "", client_email: "", client_gstin: "",
