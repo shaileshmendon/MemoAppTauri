@@ -1,9 +1,21 @@
 import {
-  Document, Page, Text, View, StyleSheet,
+  Document, Page, Text, View, StyleSheet, Font,
 } from "@react-pdf/renderer";
 import type { Invoice, Matter, Profile, LineItem, MatterParty, InvoiceCustomization, ContactPerson } from "../types";
 import { formatParty, DEFAULT_CUSTOMIZATION } from "../types";
 import { formatPDF as inr } from "../lib/currency";
+
+// Register Noto Sans — supports the ₹ glyph (Helvetica/Times do not).
+// Fonts live in public/fonts/ and are served as static assets at /fonts/*.ttf
+// Italic variants are mapped to the upright files (no synthetic italic in react-pdf).
+Font.register({ family: "NotoSans", fonts: [
+  { src: "/fonts/NotoSans-Regular.ttf" },
+  { src: "/fonts/NotoSans-Regular.ttf", fontStyle: "italic" },
+]});
+Font.register({ family: "NotoSans-Bold", fonts: [
+  { src: "/fonts/NotoSans-Bold.ttf" },
+  { src: "/fonts/NotoSans-Bold.ttf", fontStyle: "italic" },
+]});
 
 // ── Number to words (Indian system) ─────────────────────────────────────────
 
@@ -95,24 +107,24 @@ function showOrgSide(invoice: Invoice, side: "firm" | "client"): boolean {
 // ── Modern template ──────────────────────────────────────────────────────────
 
 const modernStyles = StyleSheet.create({
-  page: { fontFamily: "Helvetica", fontSize: 9, color: "#1a1a1a", backgroundColor: "#ffffff" },
+  page: { fontFamily: "NotoSans", fontSize: 9, color: "#1a1a1a", backgroundColor: "#ffffff" },
   header: { backgroundColor: "#1e40af", paddingHorizontal: 36, paddingVertical: 24, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   headerLeft: { flex: 1 },
-  headerName: { fontSize: 18, fontFamily: "Helvetica-Bold", color: "#ffffff", marginBottom: 3 },
+  headerName: { fontSize: 18, fontFamily: "NotoSans-Bold", color: "#ffffff", marginBottom: 3 },
   headerSub: { fontSize: 8, color: "#bfdbfe", marginBottom: 1 },
   headerRight: { alignItems: "flex-end" },
-  invoiceLabel: { fontSize: 14, fontFamily: "Helvetica-Bold", color: "#ffffff", opacity: 0.9 },
+  invoiceLabel: { fontSize: 14, fontFamily: "NotoSans-Bold", color: "#ffffff", opacity: 0.9 },
   invoiceNum: { fontSize: 9, color: "#bfdbfe", marginTop: 2 },
   body: { paddingHorizontal: 36, paddingTop: 24 },
   twoCol: { flexDirection: "row", gap: 20, marginBottom: 20 },
   col: { flex: 1 },
-  sectionLabel: { fontSize: 7, fontFamily: "Helvetica-Bold", color: "#6b7280", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 6, borderBottomWidth: 0.5, borderBottomColor: "#e5e7eb", paddingBottom: 3 },
+  sectionLabel: { fontSize: 7, fontFamily: "NotoSans-Bold", color: "#6b7280", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 6, borderBottomWidth: 0.5, borderBottomColor: "#e5e7eb", paddingBottom: 3 },
   field: { marginBottom: 3 },
   fieldLabel: { fontSize: 7, color: "#9ca3af", marginBottom: 1 },
   fieldVal: { fontSize: 8.5, color: "#111827" },
   table: { marginTop: 12 },
   tableHeader: { flexDirection: "row", backgroundColor: "#1e40af", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 3 },
-  tableHeaderText: { color: "#ffffff", fontSize: 8, fontFamily: "Helvetica-Bold" },
+  tableHeaderText: { color: "#ffffff", fontSize: 8, fontFamily: "NotoSans-Bold" },
   tableRow: { flexDirection: "row", paddingHorizontal: 10, paddingVertical: 6, borderBottomWidth: 0.5, borderBottomColor: "#f3f4f6" },
   tableRowAlt: { backgroundColor: "#f9fafb" },
   descCol: { flex: 1 },
@@ -122,10 +134,10 @@ const modernStyles = StyleSheet.create({
   totalLabel: { fontSize: 8, color: "#6b7280", width: 90, textAlign: "right", marginRight: 12 },
   totalVal: { fontSize: 8, color: "#374151", width: 70, textAlign: "right" },
   grandRow: { flexDirection: "row", justifyContent: "flex-end", marginTop: 6, backgroundColor: "#1e40af", borderRadius: 4, paddingHorizontal: 12, paddingVertical: 6 },
-  grandLabel: { fontSize: 10, fontFamily: "Helvetica-Bold", color: "#ffffff", width: 90, textAlign: "right", marginRight: 12 },
-  grandVal: { fontSize: 10, fontFamily: "Helvetica-Bold", color: "#ffffff", width: 70, textAlign: "right" },
+  grandLabel: { fontSize: 10, fontFamily: "NotoSans-Bold", color: "#ffffff", width: 90, textAlign: "right", marginRight: 12 },
+  grandVal: { fontSize: 10, fontFamily: "NotoSans-Bold", color: "#ffffff", width: 70, textAlign: "right" },
   bank: { marginTop: 20, backgroundColor: "#f0f9ff", borderRadius: 6, padding: 12 },
-  bankTitle: { fontSize: 8, fontFamily: "Helvetica-Bold", color: "#1e40af", marginBottom: 6 },
+  bankTitle: { fontSize: 8, fontFamily: "NotoSans-Bold", color: "#1e40af", marginBottom: 6 },
   bankRow: { flexDirection: "row", gap: 16, flexWrap: "wrap" },
   bankItem: { marginBottom: 3 },
   notes: { marginTop: 16, fontSize: 8, color: "#6b7280", fontStyle: "italic" },
@@ -176,7 +188,7 @@ function ModernTemplate({ invoice, matter, profile, lineItems, parties, c, clien
           {useContactSide(invoice, "firm", firmContact) ? (
             <View style={modernStyles.col}>
               <Text style={modernStyles.sectionLabel}>Bill To — AOR / Firm</Text>
-              <Text style={[modernStyles.fieldVal, { fontFamily: "Helvetica-Bold", marginBottom: 2 }]}>{firmContact!.name}</Text>
+              <Text style={[modernStyles.fieldVal, { fontFamily: "NotoSans-Bold", marginBottom: 2 }]}>{firmContact!.name}</Text>
               {firmContact!.designation ? <Text style={modernStyles.fieldVal}>{firmContact!.designation}</Text> : null}
               {(firmContact!.company || matter.firm_name) ? <Text style={modernStyles.fieldVal}>{firmContact!.company || matter.firm_name}</Text> : null}
               {firmContact!.email   ? <Text style={modernStyles.fieldVal}>{firmContact!.email}</Text>   : null}
@@ -188,7 +200,7 @@ function ModernTemplate({ invoice, matter, profile, lineItems, parties, c, clien
               <Text style={modernStyles.sectionLabel}>
                 {(invoice.address_mode === "org_firm" || invoice.recipient_type === "firm") ? "Bill To — AOR / Firm" : "Engaged by (AOR / Firm)"}
               </Text>
-              <Text style={[modernStyles.fieldVal, { fontFamily: "Helvetica-Bold", marginBottom: 2 }]}>{matter.firm_name}</Text>
+              <Text style={[modernStyles.fieldVal, { fontFamily: "NotoSans-Bold", marginBottom: 2 }]}>{matter.firm_name}</Text>
               {matter.firm_gstin ? <Text style={modernStyles.fieldVal}>GSTIN: {matter.firm_gstin}</Text> : null}
               {matter.firm_state  ? <Text style={modernStyles.fieldVal}>State: {matter.firm_state}</Text>  : null}
               {matter.firm_email  ? <Text style={modernStyles.fieldVal}>{matter.firm_email}</Text>  : null}
@@ -199,7 +211,7 @@ function ModernTemplate({ invoice, matter, profile, lineItems, parties, c, clien
           {useContactSide(invoice, "client", clientContact) ? (
             <View style={modernStyles.col}>
               <Text style={modernStyles.sectionLabel}>Bill To — Client</Text>
-              <Text style={[modernStyles.fieldVal, { fontFamily: "Helvetica-Bold", marginBottom: 2 }]}>{clientContact!.name}</Text>
+              <Text style={[modernStyles.fieldVal, { fontFamily: "NotoSans-Bold", marginBottom: 2 }]}>{clientContact!.name}</Text>
               {clientContact!.designation ? <Text style={modernStyles.fieldVal}>{clientContact!.designation}</Text> : null}
               {(clientContact!.company || matter.client_name) ? <Text style={modernStyles.fieldVal}>{clientContact!.company || matter.client_name}</Text> : null}
               {clientContact!.email   ? <Text style={modernStyles.fieldVal}>{clientContact!.email}</Text>   : null}
@@ -211,7 +223,7 @@ function ModernTemplate({ invoice, matter, profile, lineItems, parties, c, clien
               <Text style={modernStyles.sectionLabel}>
                 {(invoice.address_mode === "org_client" || invoice.recipient_type === "client") ? "Bill To — Client" : "Client"}
               </Text>
-              <Text style={[modernStyles.fieldVal, { fontFamily: "Helvetica-Bold", marginBottom: 2 }]}>{matter.client_name}</Text>
+              <Text style={[modernStyles.fieldVal, { fontFamily: "NotoSans-Bold", marginBottom: 2 }]}>{matter.client_name}</Text>
               {matter.client_gstin ? <Text style={modernStyles.fieldVal}>GSTIN: {matter.client_gstin}</Text> : null}
               {matter.client_state  ? <Text style={modernStyles.fieldVal}>State: {matter.client_state}</Text>  : null}
               {matter.client_email  ? <Text style={modernStyles.fieldVal}>{matter.client_email}</Text>  : null}
@@ -257,7 +269,7 @@ function ModernTemplate({ invoice, matter, profile, lineItems, parties, c, clien
         {/* Appearing for */}
         {parties.length > 0 && (
           <View style={{ marginBottom: 10, paddingVertical: 6, paddingHorizontal: 10, backgroundColor: "#eff6ff", borderRadius: 4 }}>
-            <Text style={{ fontSize: 7, fontFamily: "Helvetica-Bold", color: "#1e40af", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 3 }}>
+            <Text style={{ fontSize: 7, fontFamily: "NotoSans-Bold", color: "#1e40af", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 3 }}>
               Appearing for
             </Text>
             <Text style={{ fontSize: 8.5, color: "#1e3a8a" }}>
@@ -367,29 +379,29 @@ function BankField({ label, val }: { label: string; val: string }) {
 // ── Classic template ──────────────────────────────────────────────────────────
 
 const classicStyles = StyleSheet.create({
-  page: { fontFamily: "Times-Roman", fontSize: 9.5, color: "#111111", backgroundColor: "#ffffff", paddingHorizontal: 48, paddingVertical: 48 },
+  page: { fontFamily: "NotoSans", fontSize: 9.5, color: "#111111", backgroundColor: "#ffffff", paddingHorizontal: 48, paddingVertical: 48 },
   border: { borderWidth: 1.5, borderColor: "#111111", padding: 24 },
   heading: { textAlign: "center", marginBottom: 16, borderBottomWidth: 1, borderBottomColor: "#111111", paddingBottom: 12 },
-  firmName: { fontSize: 18, fontFamily: "Times-Bold", marginBottom: 2 },
+  firmName: { fontSize: 18, fontFamily: "NotoSans-Bold", marginBottom: 2 },
   firmSub: { fontSize: 9, marginBottom: 1 },
-  invoiceTitle: { fontSize: 13, fontFamily: "Times-Bold", marginTop: 10, letterSpacing: 1 },
+  invoiceTitle: { fontSize: 13, fontFamily: "NotoSans-Bold", marginTop: 10, letterSpacing: 1 },
   twoCol: { flexDirection: "row", justifyContent: "space-between", marginBottom: 16 },
   col: { flex: 1 },
-  label: { fontSize: 8, fontFamily: "Times-Bold", marginBottom: 1 },
+  label: { fontSize: 8, fontFamily: "NotoSans-Bold", marginBottom: 1 },
   val: { fontSize: 9, marginBottom: 2 },
   tableHeader: { flexDirection: "row", borderTopWidth: 1, borderBottomWidth: 1, borderColor: "#111111", paddingVertical: 5, marginTop: 12 },
   tableRow: { flexDirection: "row", borderBottomWidth: 0.5, borderBottomColor: "#999999", paddingVertical: 5 },
   desc: { flex: 1, fontSize: 9 },
   amt: { width: 80, textAlign: "right", fontSize: 9 },
-  labelBold: { fontFamily: "Times-Bold", fontSize: 9 },
+  labelBold: { fontFamily: "NotoSans-Bold", fontSize: 9 },
   totalSection: { marginTop: 8, alignItems: "flex-end" },
   totalRow: { flexDirection: "row", justifyContent: "flex-end", marginBottom: 2 },
   tLabel: { width: 100, textAlign: "right", fontSize: 9, marginRight: 12 },
   tVal: { width: 80, textAlign: "right", fontSize: 9 },
-  tLabelBold: { width: 100, textAlign: "right", fontSize: 10, fontFamily: "Times-Bold", marginRight: 12, borderTopWidth: 1, borderTopColor: "#111111", paddingTop: 3 },
-  tValBold: { width: 80, textAlign: "right", fontSize: 10, fontFamily: "Times-Bold", borderTopWidth: 1, borderTopColor: "#111111", paddingTop: 3 },
+  tLabelBold: { width: 100, textAlign: "right", fontSize: 10, fontFamily: "NotoSans-Bold", marginRight: 12, borderTopWidth: 1, borderTopColor: "#111111", paddingTop: 3 },
+  tValBold: { width: 80, textAlign: "right", fontSize: 10, fontFamily: "NotoSans-Bold", borderTopWidth: 1, borderTopColor: "#111111", paddingTop: 3 },
   bank: { marginTop: 20, borderTopWidth: 0.5, borderTopColor: "#999999", paddingTop: 10 },
-  bankTitle: { fontSize: 9, fontFamily: "Times-Bold", marginBottom: 4 },
+  bankTitle: { fontSize: 9, fontFamily: "NotoSans-Bold", marginBottom: 4 },
   bankText: { fontSize: 8.5 },
   sig: { marginTop: 40, alignItems: "flex-end" },
   sigLine: { width: 140, borderTopWidth: 1, borderTopColor: "#111111", paddingTop: 4, fontSize: 8.5, textAlign: "center" },
@@ -422,11 +434,11 @@ function ClassicTemplate({ invoice, matter, profile, lineItems, parties, c, clie
         <View style={[classicStyles.twoCol, { marginBottom: 10 }]}>
           <View style={classicStyles.col} />
           <View style={[classicStyles.col, { alignItems: "flex-end" }]}>
-            <Text style={classicStyles.label}>Invoice No.: <Text style={{ fontFamily: "Times-Roman" }}>{invoice.invoice_number}</Text></Text>
-            <Text style={classicStyles.label}>Date: <Text style={{ fontFamily: "Times-Roman" }}>{fmtDate(invoice.invoice_date)}</Text></Text>
-            {invoice.due_date ? <Text style={classicStyles.label}>Due: <Text style={{ fontFamily: "Times-Roman" }}>{fmtDate(invoice.due_date)}</Text></Text> : null}
-            {c.showMatterInfo && <Text style={classicStyles.label}>Matter: <Text style={{ fontFamily: "Times-Roman" }}>{matter.case_title}</Text></Text>}
-            {c.showMatterInfo && matter.matter_number ? <Text style={classicStyles.label}>Matter No.: <Text style={{ fontFamily: "Times-Roman" }}>{matter.matter_number}</Text></Text> : null}
+            <Text style={classicStyles.label}>Invoice No.: <Text style={{ fontFamily: "NotoSans" }}>{invoice.invoice_number}</Text></Text>
+            <Text style={classicStyles.label}>Date: <Text style={{ fontFamily: "NotoSans" }}>{fmtDate(invoice.invoice_date)}</Text></Text>
+            {invoice.due_date ? <Text style={classicStyles.label}>Due: <Text style={{ fontFamily: "NotoSans" }}>{fmtDate(invoice.due_date)}</Text></Text> : null}
+            {c.showMatterInfo && <Text style={classicStyles.label}>Matter: <Text style={{ fontFamily: "NotoSans" }}>{matter.case_title}</Text></Text>}
+            {c.showMatterInfo && matter.matter_number ? <Text style={classicStyles.label}>Matter No.: <Text style={{ fontFamily: "NotoSans" }}>{matter.matter_number}</Text></Text> : null}
           </View>
         </View>
 
@@ -435,7 +447,7 @@ function ClassicTemplate({ invoice, matter, profile, lineItems, parties, c, clie
           {useContactSide(invoice, "firm", firmContact) ? (
             <View style={classicStyles.col}>
               <Text style={classicStyles.label}>Bill To (AOR / Firm):</Text>
-              <Text style={[classicStyles.val, { fontFamily: "Times-Bold" }]}>{firmContact!.name}</Text>
+              <Text style={[classicStyles.val, { fontFamily: "NotoSans-Bold" }]}>{firmContact!.name}</Text>
               {firmContact!.designation ? <Text style={classicStyles.val}>{firmContact!.designation}</Text> : null}
               {(firmContact!.company || matter.firm_name) ? <Text style={classicStyles.val}>{firmContact!.company || matter.firm_name}</Text> : null}
               {firmContact!.email   ? <Text style={classicStyles.val}>{firmContact!.email}</Text>   : null}
@@ -444,7 +456,7 @@ function ClassicTemplate({ invoice, matter, profile, lineItems, parties, c, clie
           ) : showOrgSide(invoice, "firm") && matter.firm_name ? (
             <View style={classicStyles.col}>
               <Text style={classicStyles.label}>{(invoice.address_mode === "org_firm" || invoice.recipient_type === "firm") ? "Bill To (AOR / Firm):" : "Engaged by (AOR / Firm):"}</Text>
-              <Text style={[classicStyles.val, { fontFamily: "Times-Bold" }]}>{matter.firm_name}</Text>
+              <Text style={[classicStyles.val, { fontFamily: "NotoSans-Bold" }]}>{matter.firm_name}</Text>
               {matter.firm_gstin ? <Text style={classicStyles.val}>GSTIN: {matter.firm_gstin}</Text> : null}
               {matter.firm_email  ? <Text style={classicStyles.val}>{matter.firm_email}</Text>  : null}
             </View>
@@ -453,7 +465,7 @@ function ClassicTemplate({ invoice, matter, profile, lineItems, parties, c, clie
           {useContactSide(invoice, "client", clientContact) ? (
             <View style={classicStyles.col}>
               <Text style={classicStyles.label}>Bill To (Client):</Text>
-              <Text style={[classicStyles.val, { fontFamily: "Times-Bold" }]}>{clientContact!.name}</Text>
+              <Text style={[classicStyles.val, { fontFamily: "NotoSans-Bold" }]}>{clientContact!.name}</Text>
               {clientContact!.designation ? <Text style={classicStyles.val}>{clientContact!.designation}</Text> : null}
               {(clientContact!.company || matter.client_name) ? <Text style={classicStyles.val}>{clientContact!.company || matter.client_name}</Text> : null}
               {clientContact!.email   ? <Text style={classicStyles.val}>{clientContact!.email}</Text>   : null}
@@ -462,7 +474,7 @@ function ClassicTemplate({ invoice, matter, profile, lineItems, parties, c, clie
           ) : showOrgSide(invoice, "client") ? (
             <View style={classicStyles.col}>
               <Text style={classicStyles.label}>{(invoice.address_mode === "org_client" || invoice.recipient_type === "client") ? "Bill To (Client):" : "Client:"}</Text>
-              <Text style={[classicStyles.val, { fontFamily: "Times-Bold" }]}>{matter.client_name}</Text>
+              <Text style={[classicStyles.val, { fontFamily: "NotoSans-Bold" }]}>{matter.client_name}</Text>
               {matter.client_gstin ? <Text style={classicStyles.val}>GSTIN: {matter.client_gstin}</Text> : null}
               {matter.client_email  ? <Text style={classicStyles.val}>{matter.client_email}</Text>  : null}
             </View>
@@ -477,9 +489,9 @@ function ClassicTemplate({ invoice, matter, profile, lineItems, parties, c, clie
         {/* Appearing for */}
         {parties.length > 0 && (
           <View style={{ marginBottom: 8, borderTopWidth: 0.5, borderTopColor: "#999999", paddingTop: 6 }}>
-            <Text style={{ fontSize: 8.5, fontFamily: "Times-Bold" }}>
+            <Text style={{ fontSize: 8.5, fontFamily: "NotoSans-Bold" }}>
               Appearing for:{" "}
-              <Text style={{ fontFamily: "Times-Roman" }}>
+              <Text style={{ fontFamily: "NotoSans" }}>
                 {parties.map(formatParty).join(", ")}
               </Text>
             </Text>
@@ -488,8 +500,8 @@ function ClassicTemplate({ invoice, matter, profile, lineItems, parties, c, clie
 
         {/* Table */}
         <View style={classicStyles.tableHeader}>
-          <Text style={[classicStyles.desc, { fontFamily: "Times-Bold" }]}>Description</Text>
-          <Text style={[classicStyles.amt, { fontFamily: "Times-Bold" }]}>Amount</Text>
+          <Text style={[classicStyles.desc, { fontFamily: "NotoSans-Bold" }]}>Description</Text>
+          <Text style={[classicStyles.amt, { fontFamily: "NotoSans-Bold" }]}>Amount</Text>
         </View>
         {lineItems.map((li, i) => (
           <View key={i} style={classicStyles.tableRow}>
@@ -565,8 +577,8 @@ function ClassicTemplate({ invoice, matter, profile, lineItems, parties, c, clie
 // ── Minimal template ──────────────────────────────────────────────────────────
 
 const minimalStyles = StyleSheet.create({
-  page: { fontFamily: "Helvetica", fontSize: 9, color: "#333333", backgroundColor: "#ffffff", paddingHorizontal: 52, paddingVertical: 52 },
-  firmName: { fontSize: 16, fontFamily: "Helvetica-Bold", color: "#111111", marginBottom: 2 },
+  page: { fontFamily: "NotoSans", fontSize: 9, color: "#333333", backgroundColor: "#ffffff", paddingHorizontal: 52, paddingVertical: 52 },
+  firmName: { fontSize: 16, fontFamily: "NotoSans-Bold", color: "#111111", marginBottom: 2 },
   firmSub: { fontSize: 8, color: "#888888", marginBottom: 1 },
   divider: { borderBottomWidth: 0.5, borderBottomColor: "#dddddd", marginVertical: 16 },
   twoCol: { flexDirection: "row", justifyContent: "space-between", marginBottom: 20 },
@@ -582,8 +594,8 @@ const minimalStyles = StyleSheet.create({
   totalRow: { flexDirection: "row", marginBottom: 2 },
   tLabel: { fontSize: 8, color: "#888888", width: 100, textAlign: "right", marginRight: 12 },
   tVal: { fontSize: 8, color: "#333333", width: 80, textAlign: "right" },
-  grandLabel: { fontSize: 11, fontFamily: "Helvetica-Bold", color: "#111111", width: 100, textAlign: "right", marginRight: 12, marginTop: 8 },
-  grandVal: { fontSize: 11, fontFamily: "Helvetica-Bold", color: "#111111", width: 80, textAlign: "right", marginTop: 8 },
+  grandLabel: { fontSize: 11, fontFamily: "NotoSans-Bold", color: "#111111", width: 100, textAlign: "right", marginRight: 12, marginTop: 8 },
+  grandVal: { fontSize: 11, fontFamily: "NotoSans-Bold", color: "#111111", width: 80, textAlign: "right", marginTop: 8 },
   bank: { marginTop: 24, backgroundColor: "#f9f9f9", padding: 12, borderRadius: 4 },
   bankLabel: { fontSize: 7, color: "#aaaaaa", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 },
   bankRow: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
@@ -594,7 +606,7 @@ const minimalStyles = StyleSheet.create({
   sig: { marginTop: 40, alignItems: "flex-end" },
   sigLine: { width: 120, borderTopWidth: 0.5, borderTopColor: "#bbbbbb", paddingTop: 4, fontSize: 7.5, color: "#888888", textAlign: "center" },
   invoiceTag: { fontSize: 8, color: "#aaaaaa", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 },
-  invoiceNum: { fontSize: 14, fontFamily: "Helvetica-Bold", color: "#111111" },
+  invoiceNum: { fontSize: 14, fontFamily: "NotoSans-Bold", color: "#111111" },
 });
 
 function MinimalTemplate({ invoice, matter, profile, lineItems, parties, c, clientContact, firmContact }: TemplateProps) {
@@ -630,7 +642,7 @@ function MinimalTemplate({ invoice, matter, profile, lineItems, parties, c, clie
         {useContactSide(invoice, "firm", firmContact) ? (
           <View style={minimalStyles.col}>
             <Text style={minimalStyles.label}>Bill To — AOR / Firm</Text>
-            <Text style={[minimalStyles.val, { fontFamily: "Helvetica-Bold" }]}>{firmContact!.name}</Text>
+            <Text style={[minimalStyles.val, { fontFamily: "NotoSans-Bold" }]}>{firmContact!.name}</Text>
             {firmContact!.designation ? <Text style={minimalStyles.val}>{firmContact!.designation}</Text> : null}
             {(firmContact!.company || matter.firm_name) ? <Text style={minimalStyles.val}>{firmContact!.company || matter.firm_name}</Text> : null}
             {firmContact!.email   ? <Text style={minimalStyles.val}>{firmContact!.email}</Text>   : null}
@@ -639,7 +651,7 @@ function MinimalTemplate({ invoice, matter, profile, lineItems, parties, c, clie
         ) : showOrgSide(invoice, "firm") && matter.firm_name ? (
           <View style={minimalStyles.col}>
             <Text style={minimalStyles.label}>{(invoice.address_mode === "org_firm" || invoice.recipient_type === "firm") ? "Bill To — AOR / Firm" : "Engaged by (AOR / Firm)"}</Text>
-            <Text style={[minimalStyles.val, { fontFamily: "Helvetica-Bold" }]}>{matter.firm_name}</Text>
+            <Text style={[minimalStyles.val, { fontFamily: "NotoSans-Bold" }]}>{matter.firm_name}</Text>
             {matter.firm_gstin ? <Text style={minimalStyles.val}>GSTIN: {matter.firm_gstin}</Text> : null}
             {matter.firm_email  ? <Text style={minimalStyles.val}>{matter.firm_email}</Text>  : null}
           </View>
@@ -647,7 +659,7 @@ function MinimalTemplate({ invoice, matter, profile, lineItems, parties, c, clie
         {useContactSide(invoice, "client", clientContact) ? (
           <View style={minimalStyles.col}>
             <Text style={minimalStyles.label}>Bill To — Client</Text>
-            <Text style={[minimalStyles.val, { fontFamily: "Helvetica-Bold" }]}>{clientContact!.name}</Text>
+            <Text style={[minimalStyles.val, { fontFamily: "NotoSans-Bold" }]}>{clientContact!.name}</Text>
             {clientContact!.designation ? <Text style={minimalStyles.val}>{clientContact!.designation}</Text> : null}
             {(clientContact!.company || matter.client_name) ? <Text style={minimalStyles.val}>{clientContact!.company || matter.client_name}</Text> : null}
             {clientContact!.email   ? <Text style={minimalStyles.val}>{clientContact!.email}</Text>   : null}
@@ -656,7 +668,7 @@ function MinimalTemplate({ invoice, matter, profile, lineItems, parties, c, clie
         ) : showOrgSide(invoice, "client") ? (
           <View style={minimalStyles.col}>
             <Text style={minimalStyles.label}>{(invoice.address_mode === "org_client" || invoice.recipient_type === "client") ? "Bill To — Client" : "Client"}</Text>
-            <Text style={[minimalStyles.val, { fontFamily: "Helvetica-Bold" }]}>{matter.client_name}</Text>
+            <Text style={[minimalStyles.val, { fontFamily: "NotoSans-Bold" }]}>{matter.client_name}</Text>
             {matter.client_gstin ? <Text style={minimalStyles.val}>GSTIN: {matter.client_gstin}</Text> : null}
             {matter.client_email  ? <Text style={minimalStyles.val}>{matter.client_email}</Text>  : null}
           </View>

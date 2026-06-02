@@ -39,10 +39,11 @@ export function formatCurrency(n: number): string {
 }
 
 /**
- * PDF-safe rupee display — e.g. Rs. 1,23,456.00
- * Must use "Rs." because Helvetica/Times/Courier do not contain the ₹ glyph.
+ * PDF rupee display — e.g. ₹1,23,456.00
+ * Uses the ₹ glyph — requires NotoSans font to be registered in InvoicePDF.tsx
+ * (built-in PDF fonts Helvetica/Times/Courier do not contain ₹).
  * Use ONLY inside @react-pdf/renderer components.
  */
 export function formatPDF(n: number): string {
-  return `Rs. ${FMT_2_NUM.format(n)}`;
+  return `₹${FMT_2_NUM.format(n)}`;
 }
