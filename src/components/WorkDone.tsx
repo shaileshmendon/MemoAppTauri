@@ -267,7 +267,7 @@ export default function WorkDone({ matter, onInvoiceCreated }: Props) {
   const allItems: WorkItem[] = [
     ...appearances.map(a => ({ kind: "appearance" as const, data: a })),
     ...timeEntries.map(t => ({ kind: "time" as const, data: t })),
-  ].sort((a, b) => b.data.date.localeCompare(a.data.date));
+  ].sort((a, b) => a.data.date.localeCompare(b.data.date));
 
   const filteredItems = allItems.filter(item => {
     if (filter === "appearances") return item.kind === "appearance";
@@ -288,7 +288,7 @@ export default function WorkDone({ matter, onInvoiceCreated }: Props) {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full">
 
       {/* ── Toolbar ───────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-3 px-6 py-3 border-b border-neutral-100 shrink-0">
@@ -344,7 +344,7 @@ export default function WorkDone({ matter, onInvoiceCreated }: Props) {
               <Plus size={12} /> Add Work <ChevronDown size={11} className={`transition-transform ${showAddMenu ? "rotate-180" : ""}`} />
             </button>
             {showAddMenu && (
-              <div className="absolute right-0 top-full mt-1.5 bg-white border border-neutral-200 rounded-xl shadow-lg overflow-hidden z-10 w-44">
+              <div className="absolute right-0 top-full mt-1.5 bg-white border border-neutral-200 rounded-xl shadow-lg overflow-hidden z-50 w-44">
                 <button type="button"
                   onClick={() => startAdd("appearance")}
                   className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-neutral-700 hover:bg-neutral-50 text-left">
@@ -380,7 +380,7 @@ export default function WorkDone({ matter, onInvoiceCreated }: Props) {
         />
       )}
 
-      {/* ── Unified list ──────────────────────────────────────────────────── */}
+      {/* ── Unified list — split into Unbilled / Billed sections ─────────── */}
       <div className="flex-1 overflow-y-auto">
         {filteredItems.length === 0 && !editingApp && !editingTime && (
           <div className="flex flex-col items-center justify-center h-full gap-3 text-center px-8">
@@ -394,21 +394,28 @@ export default function WorkDone({ matter, onInvoiceCreated }: Props) {
           </div>
         )}
 
-        {filteredItems.map(item => (
-          item.kind === "appearance"
-            ? <AppearanceRow
-                key={item.data.id}
-                entry={item.data}
-                onEdit={() => { setEditingApp(item.data); setIsNewApp(false); setEditingTime(null); }}
-                onDelete={() => handleDeleteApp(item.data.id)}
-              />
-            : <TimeRow
-                key={item.data.id}
-                entry={item.data}
-                onEdit={() => { setEditingTime(item.data); setIsNewTime(false); setEditingApp(null); }}
-                onDelete={() => handleDeleteTime(item.data.id)}
-              />
-        ))}
+        <WorkSection
+          title="Unbilled"
+          items={filteredItems.filter(item =>
+            item.kind === "appearance"
+              ? !item.data.is_billed
+              : !item.data.is_billed
+          )}
+          onEditApp={a  => { setEditingApp(a);  setIsNewApp(false);  setEditingTime(null); }}
+          onEditTime={t => { setEditingTime(t); setIsNewTime(false); setEditingApp(null);  }}
+          onDeleteApp={handleDeleteApp}
+          onDeleteTime={handleDeleteTime}
+        />
+
+        <WorkSection
+          title="Billed"
+          items={filteredItems.filter(item => !!item.data.is_billed)}
+          dimmed
+          onEditApp={a  => { setEditingApp(a);  setIsNewApp(false);  setEditingTime(null); }}
+          onEditTime={t => { setEditingTime(t); setIsNewTime(false); setEditingApp(null);  }}
+          onDeleteApp={handleDeleteApp}
+          onDeleteTime={handleDeleteTime}
+        />
       </div>
 
       {/* ── Bill Unbilled Work ────────────────────────────────────────────── */}
@@ -424,15 +431,72 @@ export default function WorkDone({ matter, onInvoiceCreated }: Props) {
   );
 }
 
+// ── WorkSection — renders a labelled group of unbilled or billed items ────────
+
+function WorkSection({
+  title, items, dimmed = false,
+  onEditApp, onEditTime, onDeleteApp, onDeleteTime,
+}: {
+  title: string;
+  items: WorkItem[];
+  dimmed?: boolean;
+  onEditApp:    (a: Appearance) => void;
+  onEditTime:   (t: TimeEntry)  => void;
+  onDeleteApp:  (id: string)    => void;
+  onDeleteTime: (id: string)    => void;
+}) {
+  if (items.length === 0) return null;
+
+  return (
+    <div>
+      {/* Section header */}
+      <div className={`flex items-center gap-3 px-6 py-2 sticky top-0 z-10 border-b border-neutral-100 ${
+        dimmed ? "bg-neutral-50" : "bg-white"
+      }`}>
+        <span className={`text-[11px] font-semibold uppercase tracking-wider ${
+          dimmed ? "text-neutral-400" : "text-amber-600"
+        }`}>
+          {title}
+        </span>
+        <span className={`text-[11px] ${dimmed ? "text-neutral-300" : "text-amber-400"}`}>
+          {items.length} item{items.length !== 1 ? "s" : ""}
+        </span>
+      </div>
+
+      {/* Rows */}
+      {items.map(item =>
+        item.kind === "appearance"
+          ? <AppearanceRow
+              key={item.data.id}
+              entry={item.data}
+              dimmed={dimmed}
+              onEdit={() => onEditApp(item.data)}
+              onDelete={() => onDeleteApp(item.data.id)}
+            />
+          : <TimeRow
+              key={item.data.id}
+              entry={item.data}
+              dimmed={dimmed}
+              onEdit={() => onEditTime(item.data)}
+              onDelete={() => onDeleteTime(item.data.id)}
+            />
+      )}
+    </div>
+  );
+}
+
 // ── Appearance row ────────────────────────────────────────────────────────────
 
-function AppearanceRow({ entry: a, onEdit, onDelete }: {
+function AppearanceRow({ entry: a, onEdit, onDelete, dimmed = false }: {
   entry: Appearance;
   onEdit: () => void;
   onDelete: () => void;
+  dimmed?: boolean;
 }) {
   return (
-    <div className="px-6 py-3 border-b border-neutral-100 flex items-center gap-4 hover:bg-neutral-50 group">
+    <div className={`px-6 py-3 border-b border-neutral-100 flex items-center gap-4 group ${
+      dimmed ? "bg-neutral-50/50 hover:bg-neutral-50" : "hover:bg-neutral-50"
+    }`}>
       {/* Date */}
       <div className="w-24 shrink-0">
         <p className="text-xs text-neutral-500">{format(new Date(a.date), "d MMM yyyy")}</p>
@@ -482,14 +546,17 @@ function AppearanceRow({ entry: a, onEdit, onDelete }: {
 
 // ── Time entry row ────────────────────────────────────────────────────────────
 
-function TimeRow({ entry: t, onEdit, onDelete }: {
+function TimeRow({ entry: t, onEdit, onDelete, dimmed = false }: {
   entry: TimeEntry;
   onEdit: () => void;
   onDelete: () => void;
+  dimmed?: boolean;
 }) {
   const amount = (t.duration_minutes / 60) * t.rate_per_hour;
   return (
-    <div className="px-6 py-3 border-b border-neutral-100 flex items-center gap-4 hover:bg-neutral-50 group">
+    <div className={`px-6 py-3 border-b border-neutral-100 flex items-center gap-4 group ${
+      dimmed ? "bg-neutral-50/50 hover:bg-neutral-50" : "hover:bg-neutral-50"
+    }`}>
       {/* Date */}
       <div className="w-24 shrink-0">
         <p className="text-xs text-neutral-500">{format(new Date(t.date), "d MMM yyyy")}</p>
