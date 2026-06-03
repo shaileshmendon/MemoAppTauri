@@ -12,6 +12,8 @@
  */
 
 import { useState, useEffect, useRef } from "react";
+import { useKeyboardShortcuts, useFocusTrap } from "../lib/keyboard/useKeyboardShortcuts";
+import { SHORTCUTS } from "../lib/keyboard/shortcuts";
 import { X, Zap, Clock, Scale } from "lucide-react";
 import { v4 as uuid } from "uuid";
 import { format } from "date-fns";
@@ -56,7 +58,8 @@ interface Props {
 
 export default function QuickCapture({ onClose, onSaved }: Props) {
   const toast = useToast();
-  const descRef = useRef<HTMLInputElement>(null);
+  const descRef  = useRef<HTMLInputElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
 
   const [form, setForm]               = useState(blankCapture());
   const [matterQuery, setMatterQuery] = useState("");
@@ -105,12 +108,8 @@ export default function QuickCapture({ onClose, onSaved }: Props) {
     setShowMatterList(results.length > 0);
   }, [matterQuery, allMatters]);
 
-  // Close on Escape
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [onClose]);
+  // Trap focus inside the modal so Tab never escapes to the background
+  useFocusTrap(modalRef, true);
 
   const handleTypeChange = (newType: WorkCaptureType) => {
     setForm(f => ({
@@ -183,13 +182,20 @@ export default function QuickCapture({ onClose, onSaved }: Props) {
 
   const inp = "border border-neutral-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-neutral-800 focus:ring-1 focus:ring-neutral-100 bg-white w-full";
 
+  // Keyboard shortcuts — placed here so handlers are in scope
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useKeyboardShortcuts([
+    { key: SHORTCUTS.CLOSE.key, handler: onClose },
+    { key: SHORTCUTS.SAVE.key,  handler: handleSaveToInbox, allowInInputs: true },
+  ]);
+
   return (
     /* Backdrop */
     <div
       className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh] bg-black/40 backdrop-blur-sm"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+      <div ref={modalRef} className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden" role="dialog" aria-modal="true" aria-label="Quick Capture">
 
         {/* Header */}
         <div className="flex items-center gap-2.5 px-5 py-4 border-b border-neutral-100">

@@ -18,6 +18,9 @@
  */
 
 import { useState, useEffect, useRef } from "react";
+import { useKeyboardShortcuts } from "../lib/keyboard/useKeyboardShortcuts";
+import { SHORTCUTS } from "../lib/keyboard/shortcuts";
+import { useListNavigation } from "../lib/keyboard/useListNavigation";
 import {
   Plus, Trash2, Pencil, Play, Square, ChevronDown, Gavel, Clock,
 } from "lucide-react";
@@ -275,6 +278,30 @@ export default function WorkDone({ matter, onInvoiceCreated }: Props) {
     return true;
   });
 
+  // ── Row keyboard navigation ───────────────────────────────────────────────
+  // Navigation order matches visual order: Unbilled section first, Billed below.
+  // filteredItems is date-sorted, which doesn't match the two-section layout.
+  const navItems = [
+    ...filteredItems.filter(item => !item.data.is_billed),
+    ...filteredItems.filter(item => !!item.data.is_billed),
+  ];
+
+  const noFormOpen = !editingApp && !editingTime;
+
+  const { activeIndex: rowActiveIndex, getItemRef: getRowRef, resetActive: resetRow } =
+    useListNavigation({
+      items: navItems,
+      enabled: noFormOpen,
+      onActivate: (item) => {
+        resetRow();
+        if (item.kind === "appearance") {
+          setEditingApp(item.data); setIsNewApp(false); setEditingTime(null);
+        } else {
+          setEditingTime(item.data); setIsNewTime(false); setEditingApp(null);
+        }
+      },
+    });
+
   // ── Billing summary ───────────────────────────────────────────────────────
 
   const unbilledApps  = appearances.filter(a => !a.is_billed && a.fee_amount > 0);
@@ -396,13 +423,12 @@ export default function WorkDone({ matter, onInvoiceCreated }: Props) {
 
         <WorkSection
           title="Unbilled"
-          items={filteredItems.filter(item =>
-            item.kind === "appearance"
-              ? !item.data.is_billed
-              : !item.data.is_billed
-          )}
-          onEditApp={a  => { setEditingApp(a);  setIsNewApp(false);  setEditingTime(null); }}
-          onEditTime={t => { setEditingTime(t); setIsNewTime(false); setEditingApp(null);  }}
+          items={filteredItems.filter(item => !item.data.is_billed)}
+          allItems={navItems}
+          rowActiveIndex={rowActiveIndex}
+          getRowRef={getRowRef}
+          onEditApp={a  => { resetRow(); setEditingApp(a);  setIsNewApp(false);  setEditingTime(null); }}
+          onEditTime={t => { resetRow(); setEditingTime(t); setIsNewTime(false); setEditingApp(null);  }}
           onDeleteApp={handleDeleteApp}
           onDeleteTime={handleDeleteTime}
         />
@@ -410,9 +436,12 @@ export default function WorkDone({ matter, onInvoiceCreated }: Props) {
         <WorkSection
           title="Billed"
           items={filteredItems.filter(item => !!item.data.is_billed)}
+          allItems={navItems}
+          rowActiveIndex={rowActiveIndex}
+          getRowRef={getRowRef}
           dimmed
-          onEditApp={a  => { setEditingApp(a);  setIsNewApp(false);  setEditingTime(null); }}
-          onEditTime={t => { setEditingTime(t); setIsNewTime(false); setEditingApp(null);  }}
+          onEditApp={a  => { resetRow(); setEditingApp(a);  setIsNewApp(false);  setEditingTime(null); }}
+          onEditTime={t => { resetRow(); setEditingTime(t); setIsNewTime(false); setEditingApp(null);  }}
           onDeleteApp={handleDeleteApp}
           onDeleteTime={handleDeleteTime}
         />
@@ -434,11 +463,14 @@ export default function WorkDone({ matter, onInvoiceCreated }: Props) {
 // ── WorkSection — renders a labelled group of unbilled or billed items ────────
 
 function WorkSection({
-  title, items, dimmed = false,
+  title, items, allItems, rowActiveIndex, getRowRef, dimmed = false,
   onEditApp, onEditTime, onDeleteApp, onDeleteTime,
 }: {
   title: string;
   items: WorkItem[];
+  allItems: WorkItem[];          // full filtered list — for global index lookup
+  rowActiveIndex: number;
+  getRowRef: (i: number) => (el: HTMLElement | null) => void;
   dimmed?: boolean;
   onEditApp:    (a: Appearance) => void;
   onEditTime:   (t: TimeEntry)  => void;
@@ -464,12 +496,16 @@ function WorkSection({
       </div>
 
       {/* Rows */}
-      {items.map(item =>
-        item.kind === "appearance"
+      {items.map(item => {
+        const globalIdx = allItems.indexOf(item);
+        const isKeyActive = rowActiveIndex === globalIdx;
+        return item.kind === "appearance"
           ? <AppearanceRow
               key={item.data.id}
               entry={item.data}
               dimmed={dimmed}
+              isKeyActive={isKeyActive}
+              rowRef={getRowRef(globalIdx)}
               onEdit={() => onEditApp(item.data)}
               onDelete={() => onDeleteApp(item.data.id)}
             />
@@ -477,26 +513,37 @@ function WorkSection({
               key={item.data.id}
               entry={item.data}
               dimmed={dimmed}
+              isKeyActive={isKeyActive}
+              rowRef={getRowRef(globalIdx)}
               onEdit={() => onEditTime(item.data)}
               onDelete={() => onDeleteTime(item.data.id)}
-            />
-      )}
+            />;
+      })}
     </div>
   );
 }
 
 // ── Appearance row ────────────────────────────────────────────────────────────
 
-function AppearanceRow({ entry: a, onEdit, onDelete, dimmed = false }: {
+function AppearanceRow({ entry: a, onEdit, onDelete, dimmed = false, isKeyActive = false, rowRef }: {
   entry: Appearance;
   onEdit: () => void;
   onDelete: () => void;
   dimmed?: boolean;
+  isKeyActive?: boolean;
+  rowRef?: (el: HTMLElement | null) => void;
 }) {
   return (
-    <div className={`px-6 py-3 border-b border-neutral-100 flex items-center gap-4 group ${
-      dimmed ? "bg-neutral-50/50 hover:bg-neutral-50" : "hover:bg-neutral-50"
-    }`}>
+    <div
+      ref={rowRef as ((el: HTMLDivElement | null) => void) | undefined}
+      className={`px-6 py-3 border-b border-neutral-100 flex items-center gap-4 group ${
+        isKeyActive
+          ? "bg-blue-50 border-l-2 border-l-blue-500"
+          : dimmed
+          ? "bg-neutral-50/50 hover:bg-neutral-50"
+          : "hover:bg-neutral-50"
+      }`}
+    >
       {/* Date */}
       <div className="w-24 shrink-0">
         <p className="text-xs text-neutral-500">{format(new Date(a.date), "d MMM yyyy")}</p>
@@ -546,17 +593,26 @@ function AppearanceRow({ entry: a, onEdit, onDelete, dimmed = false }: {
 
 // ── Time entry row ────────────────────────────────────────────────────────────
 
-function TimeRow({ entry: t, onEdit, onDelete, dimmed = false }: {
+function TimeRow({ entry: t, onEdit, onDelete, dimmed = false, isKeyActive = false, rowRef }: {
   entry: TimeEntry;
   onEdit: () => void;
   onDelete: () => void;
   dimmed?: boolean;
+  isKeyActive?: boolean;
+  rowRef?: (el: HTMLElement | null) => void;
 }) {
   const amount = (t.duration_minutes / 60) * t.rate_per_hour;
   return (
-    <div className={`px-6 py-3 border-b border-neutral-100 flex items-center gap-4 group ${
-      dimmed ? "bg-neutral-50/50 hover:bg-neutral-50" : "hover:bg-neutral-50"
-    }`}>
+    <div
+      ref={rowRef as ((el: HTMLDivElement | null) => void) | undefined}
+      className={`px-6 py-3 border-b border-neutral-100 flex items-center gap-4 group ${
+        isKeyActive
+          ? "bg-blue-50 border-l-2 border-l-blue-500"
+          : dimmed
+          ? "bg-neutral-50/50 hover:bg-neutral-50"
+          : "hover:bg-neutral-50"
+      }`}
+    >
       {/* Date */}
       <div className="w-24 shrink-0">
         <p className="text-xs text-neutral-500">{format(new Date(t.date), "d MMM yyyy")}</p>
@@ -620,6 +676,12 @@ function AppearanceForm({ entry, feeSchedule, onSave, onCancel }: {
   const [form, setForm] = useState(entry);
   const inp = "border border-neutral-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-neutral-800 bg-white";
   const isCourtWork = COURT_APPEARANCE_TYPES.some(x => x.value === form.hearing_type);
+
+  // ⌘S saves the form; Esc cancels
+  useKeyboardShortcuts([
+    { key: SHORTCUTS.SAVE.key,  handler: () => onSave(form), allowInInputs: true },
+    { key: SHORTCUTS.CLOSE.key, handler: onCancel },
+  ]);
 
   const handleTypeChange = (newType: HearingType) => {
     const scheduledFee = getFeeForHearingType(newType, feeSchedule);
@@ -697,6 +759,13 @@ function TimeEntryForm({ entry, onSave, onCancel }: {
 }) {
   const [form, setForm] = useState(entry);
   const inp = "border border-neutral-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-neutral-800 bg-white";
+
+  // ⌘S saves the form; Esc cancels
+  useKeyboardShortcuts([
+    { key: SHORTCUTS.SAVE.key,  handler: () => onSave(form), allowInInputs: true },
+    { key: SHORTCUTS.CLOSE.key, handler: onCancel },
+  ]);
+
   const durationHours = form.duration_minutes > 0
     ? parseFloat((form.duration_minutes / 60).toFixed(2))
     : "";

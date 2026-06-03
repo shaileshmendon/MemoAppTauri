@@ -689,6 +689,18 @@ export async function isProfileSetup(): Promise<boolean> {
   return p !== null && (p.advocateName.trim() !== "" || p.firmName.trim() !== "");
 }
 
+// ── Generic settings helpers (public) ────────────────────────────────────────
+
+/** Read any settings key by name. Returns null if not set. */
+export async function getSettingValue(key: string): Promise<string | null> {
+  return getSetting(key);
+}
+
+/** Write any settings key by name. */
+export async function setSettingValue(key: string, value: string): Promise<void> {
+  return setSetting(key, value);
+}
+
 // ── Fee Schedule ──────────────────────────────────────────────────────────────
 
 /**

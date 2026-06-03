@@ -1,4 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useKeyboardShortcuts } from "./lib/keyboard/useKeyboardShortcuts";
+import { SHORTCUTS } from "./lib/keyboard/shortcuts";
 import "./index.css";
 import Sidebar from "./components/Sidebar";
 import MatterList from "./components/MatterList";
@@ -19,7 +21,8 @@ import ScreenshotHelper from "./components/ScreenshotHelper";
 import LockScreen from "./components/LockScreen";
 import QuickCapture from "./components/QuickCapture";
 import Inbox from "./components/Inbox";
-import { isProfileSetup, loadProfile, getLock, fetchInboxCount } from "./db";
+import ShortcutHelpModal from "./components/ShortcutHelpModal";
+import { isProfileSetup, loadProfile, getLock, fetchInboxCount, getSettingValue, setSettingValue } from "./db";
 import type { AppLock } from "./db";
 import type { Matter, NavSection, Profile } from "./types";
 
@@ -39,36 +42,100 @@ export default function App() {
   const [lock, setLock] = useState<AppLock | null | "loading">("loading");
   const [unlocked, setUnlocked] = useState(false);
   const [showCapture, setShowCapture] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   const [inboxCount, setInboxCount] = useState(0);
   /** Invoice ID to auto-expand when the Invoices tab opens after Bill Unbilled Work. */
   const [pendingInvoiceId, setPendingInvoiceId] = useState<string | null>(null);
+  /** First-run: show keyboard announcement banner once after v1.1 upgrade */
+  const [showKeyboardAnnouncement, setShowKeyboardAnnouncement] = useState(false);
 
   useEffect(() => {
     Promise.all([isProfileSetup(), loadProfile(), getLock()]).then(([ready, prof, lk]) => {
       setProfileReady(ready);
       if (prof) setProfile(prof);
       setLock(lk);
-      // If no lock, consider immediately unlocked
       if (!lk) setUnlocked(true);
     });
     fetchInboxCount().then(setInboxCount);
+    // First-run keyboard announcement — show once after v1.1 upgrade
+    getSettingValue("keyboard_announced").then(v => {
+      if (!v) setShowKeyboardAnnouncement(true);
+    });
   }, []);
 
-  // ⌘K global shortcut — open Quick Capture
+  const dismissKeyboardAnnouncement = () => {
+    setShowKeyboardAnnouncement(false);
+    setSettingValue("keyboard_announced", "1");
+  };
+
   const refreshInboxCount = useCallback(() => {
     fetchInboxCount().then(setInboxCount);
   }, []);
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.metaKey && e.key === "k") {
-        e.preventDefault();
-        setShowCapture(c => !c);
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+  // ── Keyboard shortcuts ──────────────────────────────────────────────────────
+
+  // Tab order for ← → cycling
+  const MATTER_TABS: MatterTab[] = ["overview", "work_done", "invoices"];
+
+  const cycleTab = useCallback((dir: 1 | -1) => {
+    if (!selectedMatter) return;
+    const idx = MATTER_TABS.indexOf(matterTab);
+    const next = MATTER_TABS[(idx + dir + MATTER_TABS.length) % MATTER_TABS.length];
+    handleTabChange(next);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMatter, matterTab]);
+
+  // Focus the search input on the currently visible list panel
+  const focusSearch = useCallback(() => {
+    const el = document.querySelector<HTMLInputElement>("[data-search-input]");
+    el?.focus();
+    el?.select();
   }, []);
+
+  const inMatterView = nav === "matters" && !!selectedMatter && !editing && !isNew;
+
+  const shortcuts = useMemo(() => [
+    // Global navigation
+    { key: SHORTCUTS.DASHBOARD.key,   handler: () => handleNavChange("dashboard") },
+    { key: SHORTCUTS.MATTERS.key,     handler: () => handleNavChange("matters") },
+    { key: SHORTCUTS.CLIENTS.key,     handler: () => handleNavChange("clients") },
+    { key: SHORTCUTS.FIRMS.key,       handler: () => handleNavChange("firms") },
+    { key: SHORTCUTS.OUTSTANDING.key, handler: () => handleNavChange("outstanding") },
+    { key: SHORTCUTS.SETTINGS.key,    handler: () => handleNavChange("settings") },
+    // Quick Capture + Help
+    { key: SHORTCUTS.QUICK_CAPTURE.key, handler: () => setShowCapture(c => !c) },
+    { key: SHORTCUTS.HELP.key,          handler: () => setShowHelp(c => !c) },
+    // Focus search box
+    { key: SHORTCUTS.SEARCH.key, handler: focusSearch },
+    // Matter tab switching — ⌘⇧O/W/I (direct)
+    {
+      key: SHORTCUTS.TAB_OVERVIEW.key,
+      handler: () => { if (selectedMatter) handleTabChange("overview"); },
+      enabled: !!selectedMatter && nav === "matters",
+    },
+    {
+      key: SHORTCUTS.TAB_WORK_DONE.key,
+      handler: () => { if (selectedMatter) handleTabChange("work_done"); },
+      enabled: !!selectedMatter && nav === "matters",
+    },
+    {
+      key: SHORTCUTS.TAB_INVOICES.key,
+      handler: () => { if (selectedMatter) handleTabChange("invoices"); },
+      enabled: !!selectedMatter && nav === "matters",
+    },
+    // ← → cycle through matter tabs
+    { key: SHORTCUTS.TAB_PREV.key, handler: () => cycleTab(-1), enabled: inMatterView },
+    { key: SHORTCUTS.TAB_NEXT.key, handler: () => cycleTab(1),  enabled: inMatterView },
+    // Esc on Overview deselects the matter and returns to the list
+    {
+      key: SHORTCUTS.CLOSE.key,
+      handler: () => setSelectedMatter(null),
+      enabled: !!selectedMatter && nav === "matters" && !editing && !isNew && !showCapture,
+    },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [selectedMatter, nav, matterTab, editing, isNew]);
+
+  useKeyboardShortcuts(shortcuts);
 
   // Called from SettingsPage when user sets/removes lock
   const handleLockChanged = () => {
@@ -134,8 +201,8 @@ export default function App() {
     if (nav === "outstanding")    return <OutstandingDues />;
     if (nav === "record_payment") return <RecordPayment />;
     if (nav === "inbox")          return <Inbox onAssigned={refreshInboxCount} />;
-    if (nav === "clients")     return <ContactList type="client" />;
-    if (nav === "firms")       return <ContactList type="firm" />;
+    if (nav === "clients")     return <ContactList type="client" isKeyboardActive={!showCapture} />;
+    if (nav === "firms")       return <ContactList type="firm"   isKeyboardActive={!showCapture} />;
     if (nav === "settings")    return <SettingsPage profile={profile} onSaved={handleProfileSaved} onLockChanged={handleLockChanged} />;
 
     // New matter form
@@ -251,6 +318,33 @@ export default function App() {
         />
       )}
 
+      {/* Shortcut Help modal — ⌘/ */}
+      {showHelp && <ShortcutHelpModal onClose={() => setShowHelp(false)} />}
+
+      {/* First-run keyboard announcement — shown once after v1.1 upgrade */}
+      {showKeyboardAnnouncement && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 bg-neutral-900 text-white rounded-2xl shadow-2xl px-5 py-4 max-w-sm w-full mx-4">
+          <div className="flex items-start gap-3">
+            <span className="text-xl shrink-0">⌨️</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold mb-1">Keyboard shortcuts are here</p>
+              <div className="text-xs text-neutral-400 space-y-0.5">
+                <p><kbd className="bg-neutral-700 rounded px-1">⌘K</kbd> — Quick Capture</p>
+                <p><kbd className="bg-neutral-700 rounded px-1">⌘1–5</kbd> — Navigate sections</p>
+                <p><kbd className="bg-neutral-700 rounded px-1">↑↓ Enter</kbd> — Navigate lists</p>
+                <p><kbd className="bg-neutral-700 rounded px-1">⌘/</kbd> — Show all shortcuts</p>
+              </div>
+            </div>
+            <button
+              onClick={dismissKeyboardAnnouncement}
+              className="text-neutral-400 hover:text-white text-xs shrink-0 mt-0.5 px-2 py-1 rounded hover:bg-white/10"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Dev-only screenshot helper — ⌘⇧D to toggle */}
       <ScreenshotHelper />
 
@@ -270,6 +364,13 @@ export default function App() {
             onSelect={selectMatter}
             onNew={openNew}
             refresh={refreshList}
+            isKeyboardActive={
+              nav === "matters" &&
+              !editing && !isNew && !showCapture &&
+              // Disable when inside a matter's Work Done or Invoices tab
+              // so their own ↑↓ navigation doesn't conflict with the list
+              (matterTab === "overview" || !selectedMatter)
+            }
           />
         )}
 

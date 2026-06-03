@@ -17,4 +17,31 @@
     overflow: hidden;
     color: #111827; /* always dark text regardless of system colour scheme */
   }
+
+  /* ── Keyboard focus indicators ─────────────────────────────────────────────
+   * Visible only when navigating by keyboard (:focus-visible), not on
+   * mouse click (:focus). This keeps the UI clean for mouse users while
+   * giving keyboard users a clear indication of where they are.
+   */
+  :focus-visible {
+    outline: 2px solid #2563eb; /* blue-600 */
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* For elements that already have a border (inputs, selects) we use a ring
+   * so the outline doesn't shift surrounding layout.
+   */
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 0;
+  }
+
+  /* Buttons inside dark backgrounds (sidebar) need a lighter outline */
+  .bg-neutral-900 button:focus-visible,
+  aside button:focus-visible {
+    outline-color: #93c5fd; /* blue-300 — visible on dark */
+  }
 }

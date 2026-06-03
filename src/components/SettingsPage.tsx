@@ -10,6 +10,7 @@ import InvoiceDesigner from "./InvoiceDesigner";
 import type { Profile, InvoiceTemplate, InvoiceCustomization, FeeSchedule } from "../types";
 import { DEFAULT_PROFILE, DEFAULT_FEE_SCHEDULE } from "../types";
 import { COURT_APPEARANCE_TYPES, PROFESSIONAL_WORK_TYPES } from "../lib/feeSchedule";
+import { SHORTCUTS, SHORTCUT_GROUP_ORDER, displayKey } from "../lib/keyboard/shortcuts";
 import { INDIAN_STATES } from "../lib/constants/states";
 import { useToast } from "./Toast";
 
@@ -25,6 +26,7 @@ const SECTIONS = [
   { key: "bank",         label: "Bank Details" },
   { key: "invoice",      label: "Invoice Settings" },
   { key: "fee_schedule", label: "Fee Schedule" },
+  { key: "shortcuts",    label: "Keyboard Shortcuts" },
   { key: "designer",     label: "Invoice Designer" },
   { key: "backup",       label: "Backup & Restore" },
   { key: "security",     label: "Security" },
@@ -220,7 +222,7 @@ export default function SettingsPage({ profile, onSaved, onLockChanged }: Props)
       {/* Left nav */}
       <aside className="w-44 shrink-0 border-r border-neutral-100 bg-neutral-50 py-6 px-3">
         <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400 px-3 mb-3">Profile</p>
-        {(["identity", "contact", "bank", "invoice", "fee_schedule", "designer"] as const).map(key => {
+        {(["identity", "contact", "bank", "invoice", "fee_schedule", "shortcuts", "designer"] as const).map(key => {
           const s = SECTIONS.find(s => s.key === key)!;
           return (
             <button key={key} onClick={() => setActiveSection(key)}
@@ -280,7 +282,7 @@ export default function SettingsPage({ profile, onSaved, onLockChanged }: Props)
               <h1 className="text-lg font-semibold text-neutral-900">Settings</h1>
               <p className="text-xs text-neutral-500">Your profile is used in generated invoices</p>
             </div>
-            {activeSection !== "demo" && activeSection !== "security" && activeSection !== "fee_schedule" && (
+            {activeSection !== "demo" && activeSection !== "security" && activeSection !== "fee_schedule" && activeSection !== "shortcuts" && (
               <div className="ml-auto flex items-center gap-2">
                 {saved && (
                   <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
@@ -668,6 +670,39 @@ export default function SettingsPage({ profile, onSaved, onLockChanged }: Props)
                   <span className="text-sm text-neutral-400 shrink-0">/ hr</span>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* ── Keyboard Shortcuts ───────────────────────────────────── */}
+          {activeSection === "shortcuts" && (
+            <div className="space-y-5">
+              <div className="text-xs text-neutral-500 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3">
+                Press <kbd className="bg-blue-100 rounded px-1 font-mono">⌘/</kbd> anywhere in the app to open this reference. Shortcuts are suppressed while typing in text fields.
+              </div>
+              {SHORTCUT_GROUP_ORDER.map(group => {
+                const shortcuts = Object.values(SHORTCUTS).filter(s => s.group === group);
+                if (shortcuts.length === 0) return null;
+                return (
+                  <div key={group}>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
+                      {group}
+                    </p>
+                    <div className="border border-neutral-200 rounded-xl overflow-hidden">
+                      {shortcuts.map((s, i) => (
+                        <div key={s.key}
+                          className={`flex items-center justify-between px-4 py-2.5 ${
+                            i < shortcuts.length - 1 ? "border-b border-neutral-100" : ""
+                          } hover:bg-neutral-50`}>
+                          <span className="text-sm text-neutral-700">{s.description}</span>
+                          <kbd className="text-[11px] font-mono bg-neutral-100 text-neutral-600 border border-neutral-200 rounded-md px-2 py-0.5 shrink-0">
+                            {displayKey(s.key)}
+                          </kbd>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
 

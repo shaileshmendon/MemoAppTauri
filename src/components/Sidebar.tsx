@@ -1,5 +1,7 @@
 import { Scale, AlertCircle, LayoutDashboard, Users, Building2, Settings, Info, Lock, ReceiptText, Inbox, Zap } from "lucide-react";
 import type { NavSection } from "../types";
+import { ShortcutBadge } from "./ShortcutBadge";
+import { SHORTCUTS } from "../lib/keyboard/shortcuts";
 
 interface Props {
   active: NavSection;
@@ -10,15 +12,15 @@ interface Props {
   onQuickCapture?: () => void;
 }
 
-const items: { id: NavSection; label: string; icon: React.ReactNode; group?: string }[] = [
-  { id: "dashboard",      label: "Dashboard",       icon: <LayoutDashboard size={18} /> },
-  { id: "inbox",          label: "Inbox",           icon: <Inbox size={18} />,           group: "Work" },
-  { id: "matters",        label: "Matters",         icon: <Scale size={18} />,            group: "Work" },
-  { id: "outstanding",    label: "Outstanding Dues", icon: <AlertCircle size={18} />,     group: "Work" },
-  { id: "record_payment", label: "Record Payment",  icon: <ReceiptText size={18} />,      group: "Work" },
-  { id: "clients",        label: "Clients",         icon: <Users size={18} />,            group: "Contacts" },
-  { id: "firms",          label: "AOR / Firms",     icon: <Building2 size={18} />,        group: "Contacts" },
-  { id: "settings",       label: "Settings",        icon: <Settings size={18} />,         group: "Account" },
+const items: { id: NavSection; label: string; icon: React.ReactNode; group?: string; shortcut?: string }[] = [
+  { id: "dashboard",      label: "Dashboard",        icon: <LayoutDashboard size={18} />, shortcut: SHORTCUTS.DASHBOARD.key },
+  { id: "inbox",          label: "Inbox",            icon: <Inbox size={18} />,           group: "Work" },
+  { id: "matters",        label: "Matters",          icon: <Scale size={18} />,            group: "Work", shortcut: SHORTCUTS.MATTERS.key },
+  { id: "outstanding",    label: "Outstanding Dues", icon: <AlertCircle size={18} />,     group: "Work", shortcut: SHORTCUTS.OUTSTANDING.key },
+  { id: "record_payment", label: "Record Payment",   icon: <ReceiptText size={18} />,     group: "Work" },
+  { id: "clients",        label: "Clients",          icon: <Users size={18} />,            group: "Contacts", shortcut: SHORTCUTS.CLIENTS.key },
+  { id: "firms",          label: "AOR / Firms",      icon: <Building2 size={18} />,       group: "Contacts", shortcut: SHORTCUTS.FIRMS.key },
+  { id: "settings",       label: "Settings",         icon: <Settings size={18} />,        group: "Account", shortcut: SHORTCUTS.SETTINGS.key },
 ];
 
 export default function Sidebar({ active, onChange, onAbout, onLock, inboxCount = 0, onQuickCapture }: Props) {
@@ -49,7 +51,7 @@ export default function Sidebar({ active, onChange, onAbout, onLock, inboxCount 
       )}
 
       <nav className="flex-1 px-2 py-1 overflow-y-auto">
-        {items.map(({ id, label, icon, group }) => {
+        {items.map(({ id, label, icon, group, shortcut }) => {
           const showGroupHeader = group && group !== lastGroup;
           lastGroup = group;
           return (
@@ -61,7 +63,7 @@ export default function Sidebar({ active, onChange, onAbout, onLock, inboxCount 
               )}
               <button
                 onClick={() => onChange(id)}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-default mb-0.5 ${
+                className={`group w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-default mb-0.5 ${
                   active === id
                     ? "bg-white/10 text-white"
                     : "text-neutral-400 hover:bg-white/5 hover:text-neutral-200"
@@ -75,6 +77,12 @@ export default function Sidebar({ active, onChange, onAbout, onLock, inboxCount 
                     {inboxCount > 99 ? "99+" : inboxCount}
                   </span>
                 )}
+                {/* Shortcut badge — shown on hover or when active */}
+                {shortcut && id !== "inbox" && (
+                  <span className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <ShortcutBadge shortcutKey={shortcut} variant="dark" />
+                  </span>
+                )}
               </button>
             </div>
           );
@@ -82,7 +90,7 @@ export default function Sidebar({ active, onChange, onAbout, onLock, inboxCount 
       </nav>
 
       <div className="px-3 py-3 border-t border-white/5 flex items-center justify-between">
-        <span className="text-xs text-neutral-600">v1.0.2</span>
+        <span className="text-xs text-neutral-600">v1.1.2</span>
         <div className="flex items-center gap-1">
           {onLock && (
             <button onClick={onLock}

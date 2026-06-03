@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useListNavigation } from "../lib/keyboard/useListNavigation";
 import { Plus, Search, Users, Building2, List } from "lucide-react";
 import { fetchMatters } from "../db";
 import type { Matter } from "../types";
@@ -9,6 +10,7 @@ interface Props {
   onSelect: (m: Matter) => void;
   onNew: () => void;
   refresh: number;
+  isKeyboardActive?: boolean;
 }
 
 const statusColor: Record<string, string> = {
@@ -25,11 +27,12 @@ const GROUP_OPTS: { id: GroupBy; label: string; icon: React.ReactNode }[] = [
   { id: "firm",   label: "AOR / Firm", icon: <Building2 size={12} /> },
 ];
 
-export default function MatterList({ selectedId, onSelect, onNew, refresh }: Props) {
+export default function MatterList({ selectedId, onSelect, onNew, refresh, isKeyboardActive = false }: Props) {
   const [matters, setMatters]   = useState<Matter[]>([]);
   const [query, setQuery]       = useState("");
   const [groupBy, setGroupBy]   = useState<GroupBy>("none");
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchMatters().then(setMatters);
@@ -40,6 +43,12 @@ export default function MatterList({ selectedId, onSelect, onNew, refresh }: Pro
     m.client_name.toLowerCase().includes(query.toLowerCase()) ||
     (m.firm_name ?? "").toLowerCase().includes(query.toLowerCase())
   );
+
+  const { activeIndex, getItemRef } = useListNavigation({
+    items: filtered,
+    onActivate: onSelect,
+    enabled: isKeyboardActive,
+  });
 
   const toggleCollapse = (key: string) =>
     setCollapsed(prev => {
@@ -84,9 +93,18 @@ export default function MatterList({ selectedId, onSelect, onNew, refresh }: Pro
       <div className="px-3 pb-2">
         <div className="flex items-center gap-2 bg-white border border-neutral-200 rounded-lg px-2 py-1.5">
           <Search size={13} className="text-neutral-400 shrink-0" />
-          <input type="text" value={query} onChange={e => setQuery(e.target.value)}
+          <input
+            ref={searchRef}
+            data-search-input
+            type="text"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === "Escape") { setQuery(""); searchRef.current?.blur(); }
+            }}
             placeholder="Search matters…"
-            className="flex-1 text-sm outline-none bg-transparent text-neutral-800 placeholder-neutral-400 min-w-0" />
+            className="flex-1 text-sm outline-none bg-transparent text-neutral-800 placeholder-neutral-400 min-w-0"
+          />
         </div>
       </div>
 
@@ -114,67 +132,80 @@ export default function MatterList({ selectedId, onSelect, onNew, refresh }: Pro
           </p>
         )}
 
-        {grouped.map(group => (
-          <div key={group.key}>
-            {/* Group header */}
-            {groupBy !== "none" && (
-              <button
-                onClick={() => toggleCollapse(group.key)}
-                className="w-full flex items-center gap-2 px-3 py-2 bg-neutral-100 border-b border-neutral-200 hover:bg-neutral-150 transition-colors">
-                <span className="text-neutral-400">
-                  {groupBy === "client"
-                    ? <Users size={11} />
-                    : <Building2 size={11} />}
-                </span>
-                <span className="text-xs font-semibold text-neutral-600 flex-1 text-left truncate">
-                  {group.label}
-                </span>
-                <span className="text-[10px] text-neutral-400 shrink-0">
-                  {group.matters.length} {group.matters.length === 1 ? "matter" : "matters"}
-                </span>
-                <span className="text-neutral-400 text-xs shrink-0">
-                  {collapsed.has(group.key) ? "›" : "⌄"}
-                </span>
-              </button>
-            )}
+        {(() => {
+          let flatIdx = 0; // tracks position in the flat filtered[] array for keyboard ref assignment
+          return grouped.map(group => (
+            <div key={group.key}>
+              {/* Group header */}
+              {groupBy !== "none" && (
+                <button
+                  onClick={() => toggleCollapse(group.key)}
+                  className="w-full flex items-center gap-2 px-3 py-2 bg-neutral-100 border-b border-neutral-200 hover:bg-neutral-150 transition-colors">
+                  <span className="text-neutral-400">
+                    {groupBy === "client"
+                      ? <Users size={11} />
+                      : <Building2 size={11} />}
+                  </span>
+                  <span className="text-xs font-semibold text-neutral-600 flex-1 text-left truncate">
+                    {group.label}
+                  </span>
+                  <span className="text-[10px] text-neutral-400 shrink-0">
+                    {group.matters.length} {group.matters.length === 1 ? "matter" : "matters"}
+                  </span>
+                  <span className="text-neutral-400 text-xs shrink-0">
+                    {collapsed.has(group.key) ? "›" : "⌄"}
+                  </span>
+                </button>
+              )}
 
-            {/* Matters in this group */}
-            {!collapsed.has(group.key) && group.matters.map(m => (
-              <button key={m.id} onClick={() => onSelect(m)}
-                className={`w-full text-left px-3 py-2.5 border-b border-neutral-100 transition-colors cursor-default ${
-                  groupBy !== "none" ? "pl-5" : ""
-                } ${
-                  selectedId === m.id
-                    ? "bg-neutral-100 border-l-2 border-l-neutral-900"
-                    : "hover:bg-white"
-                }`}>
-                <div className="flex items-center gap-2">
-                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusColor[m.status] ?? "bg-neutral-400"}`} />
-                  <span className="text-sm font-medium text-neutral-800 truncate flex-1">{m.case_title}</span>
-                  <span className="text-[10px] font-mono text-neutral-400 shrink-0">{fmtRef(m.ref_number)}</span>
-                </div>
-                {/* Show what's NOT the group key as the subtitle */}
-                {groupBy === "firm" && (
-                  <p className="text-xs text-neutral-500 mt-0.5 pl-3.5 truncate">{m.client_name}</p>
-                )}
-                {groupBy === "client" && m.firm_name && (
-                  <p className="text-xs text-neutral-500 mt-0.5 pl-3.5 truncate">{m.firm_name}</p>
-                )}
-                {groupBy === "none" && (
-                  <>
-                    <p className="text-xs text-neutral-500 mt-0.5 pl-3.5 truncate">{m.client_name}</p>
-                    {m.firm_name && (
-                      <p className="text-xs text-neutral-400 pl-3.5 truncate">{m.firm_name}</p>
+              {/* Matters in this group */}
+              {!collapsed.has(group.key) && group.matters.map(m => {
+                const idx = filtered.indexOf(m);
+                const isKeyActive = activeIndex === idx;
+                flatIdx++;
+                return (
+                  <button
+                    key={m.id}
+                    ref={getItemRef(idx)}
+                    onClick={() => onSelect(m)}
+                    className={`w-full text-left px-3 py-2.5 border-b border-neutral-100 transition-colors cursor-default ${
+                      groupBy !== "none" ? "pl-5" : ""
+                    } ${
+                      selectedId === m.id
+                        ? "bg-neutral-100 border-l-2 border-l-neutral-900"
+                        : isKeyActive
+                        ? "bg-blue-50 border-l-2 border-l-blue-500"
+                        : "hover:bg-white"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusColor[m.status] ?? "bg-neutral-400"}`} />
+                      <span className="text-sm font-medium text-neutral-800 truncate flex-1">{m.case_title}</span>
+                      <span className="text-[10px] font-mono text-neutral-400 shrink-0">{fmtRef(m.ref_number)}</span>
+                    </div>
+                    {groupBy === "firm" && (
+                      <p className="text-xs text-neutral-500 mt-0.5 pl-3.5 truncate">{m.client_name}</p>
                     )}
-                  </>
-                )}
-                {m.court && groupBy === "none" && (
-                  <p className="text-xs text-neutral-400 pl-3.5 truncate">{m.court}</p>
-                )}
-              </button>
-            ))}
-          </div>
-        ))}
+                    {groupBy === "client" && m.firm_name && (
+                      <p className="text-xs text-neutral-500 mt-0.5 pl-3.5 truncate">{m.firm_name}</p>
+                    )}
+                    {groupBy === "none" && (
+                      <>
+                        <p className="text-xs text-neutral-500 mt-0.5 pl-3.5 truncate">{m.client_name}</p>
+                        {m.firm_name && (
+                          <p className="text-xs text-neutral-400 pl-3.5 truncate">{m.firm_name}</p>
+                        )}
+                      </>
+                    )}
+                    {m.court && groupBy === "none" && (
+                      <p className="text-xs text-neutral-400 pl-3.5 truncate">{m.court}</p>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          ));
+        })()}
       </div>
 
       {/* Footer count */}

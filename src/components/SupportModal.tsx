@@ -19,7 +19,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 
 const DEVELOPER_UPI  = "ssmendon@icici";
 const DEVELOPER_NAME = "Memo";
-const APP_VERSION    = "1.0.2";
+const APP_VERSION    = "1.1.2";
 
 const FREE_FEATURES = [
   "Unlimited matters & clients",
@@ -39,7 +39,7 @@ const TIP_FEATURES = [
   "100% optional",
 ];
 
-const TIP_AMOUNTS = [49, 99, 199, 499];
+const TIP_AMOUNTS = [199, 499, 999];
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -48,7 +48,7 @@ interface Props {
 }
 
 export default function SupportModal({ onClose }: Props) {
-  const [selectedAmount, setSelectedAmount] = useState<number>(99);
+  const [selectedAmount, setSelectedAmount] = useState<number>(499);
   const [customAmount,   setCustomAmount]   = useState("");
   const [isCustom,       setIsCustom]       = useState(false);
   const [sending,        setSending]         = useState(false);
@@ -153,7 +153,7 @@ export default function SupportModal({ onClose }: Props) {
 
             {/* Amount selector */}
             <div className="mt-auto space-y-2">
-              <div className="grid grid-cols-4 gap-1.5">
+              <div className="grid grid-cols-3 gap-1.5">
                 {TIP_AMOUNTS.map(amt => (
                   <button key={amt} type="button"
                     onClick={() => { setSelectedAmount(amt); setIsCustom(false); }}

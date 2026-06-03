@@ -4,6 +4,7 @@
  * command and pre-fills the form fields from the selected contact.
  */
 import { useState, useEffect, useRef } from "react";
+import { useListNavigation } from "../lib/keyboard/useListNavigation";
 import { Plus, Pencil, Trash2, Search, Mail, Phone, MapPin, BookUser, X, Loader2, AlertTriangle, Scale } from "lucide-react";
 import { v4 as uuid } from "uuid";
 import { invoke } from "@tauri-apps/api/core";
@@ -24,6 +25,7 @@ type Contact = Client | Firm;
 
 interface Props {
   type: ContactType;
+  isKeyboardActive?: boolean;
 }
 
 // ── Contact picker modal ───────────────────────────────────────────────────────
@@ -207,7 +209,7 @@ function ContactPickerModal({
 
 // ── Main list component ────────────────────────────────────────────────────────
 
-export default function ContactList({ type }: Props) {
+export default function ContactList({ type, isKeyboardActive = false }: Props) {
   const toast = useToast();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [query, setQuery] = useState("");
@@ -230,6 +232,12 @@ export default function ContactList({ type }: Props) {
     c.name.toLowerCase().includes(query.toLowerCase()) ||
     (c.email ?? "").toLowerCase().includes(query.toLowerCase())
   );
+
+  const { activeIndex, getItemRef } = useListNavigation({
+    items: filtered,
+    onActivate: (c) => { setSelected(c); setShowForm(false); },
+    enabled: isKeyboardActive && !showForm,
+  });
 
   const handleNew = () => { setSelected(null); setIsNew(true); setShowForm(true); };
   const handleEdit = (c: Contact) => { setSelected(c); setIsNew(false); setShowForm(true); };
@@ -280,9 +288,17 @@ export default function ContactList({ type }: Props) {
         <div className="px-3 pb-2">
           <div className="flex items-center gap-2 bg-white border border-neutral-200 rounded-lg px-2 py-1.5">
             <Search size={13} className="text-neutral-400" />
-            <input type="text" value={query} onChange={(e) => setQuery(e.target.value)}
+            <input
+              data-search-input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === "Escape") { setQuery(""); (e.target as HTMLInputElement).blur(); }
+              }}
               placeholder={`Search ${plural.toLowerCase()}…`}
-              className="flex-1 text-sm outline-none bg-transparent text-neutral-800 placeholder-neutral-400" />
+              className="flex-1 text-sm outline-none bg-transparent text-neutral-800 placeholder-neutral-400"
+            />
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
@@ -291,16 +307,27 @@ export default function ContactList({ type }: Props) {
               {query ? "No matches" : `No ${plural.toLowerCase()} yet.\nClick + to add.`}
             </p>
           )}
-          {filtered.map((c) => (
-            <button key={c.id} onClick={() => { setSelected(c); setShowForm(false); }}
-              className={`w-full text-left px-3 py-2.5 border-b border-neutral-100 transition-colors cursor-default ${
-                selected?.id === c.id && !showForm ? "bg-neutral-100 border-l-2 border-l-neutral-900" : "hover:bg-white"
-              }`}>
-              <p className="text-sm font-medium text-neutral-800 truncate">{c.name}</p>
-              {c.email && <p className="text-xs text-neutral-500 truncate">{c.email}</p>}
-              {c.state && <p className="text-xs text-neutral-400 truncate">{c.state}</p>}
-            </button>
-          ))}
+          {filtered.map((c, i) => {
+            const isKeyActive = activeIndex === i;
+            return (
+              <button
+                key={c.id}
+                ref={getItemRef(i)}
+                onClick={() => { setSelected(c); setShowForm(false); }}
+                className={`w-full text-left px-3 py-2.5 border-b border-neutral-100 transition-colors cursor-default ${
+                  selected?.id === c.id && !showForm
+                    ? "bg-neutral-100 border-l-2 border-l-neutral-900"
+                    : isKeyActive
+                    ? "bg-blue-50 border-l-2 border-l-blue-500"
+                    : "hover:bg-white"
+                }`}
+              >
+                <p className="text-sm font-medium text-neutral-800 truncate">{c.name}</p>
+                {c.email && <p className="text-xs text-neutral-500 truncate">{c.email}</p>}
+                {c.state && <p className="text-xs text-neutral-400 truncate">{c.state}</p>}
+              </button>
+            );
+          })}
         </div>
       </div>
 

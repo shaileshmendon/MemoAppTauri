@@ -1,5 +1,7 @@
 import { LayoutGrid, Briefcase, FileText } from "lucide-react";
 import type { MatterTab } from "../types";
+import { Tooltip } from "./ShortcutBadge";
+import { SHORTCUTS } from "../lib/keyboard/shortcuts";
 
 interface Props {
   active: MatterTab;
@@ -7,10 +9,10 @@ interface Props {
   matterTitle: string;
 }
 
-const tabs: { id: MatterTab; label: string; icon: React.ReactNode }[] = [
-  { id: "overview",  label: "Overview",   icon: <LayoutGrid size={14} /> },
-  { id: "work_done", label: "Work Done",  icon: <Briefcase size={14} /> },
-  { id: "invoices",  label: "Invoices",   icon: <FileText size={14} /> },
+const tabs: { id: MatterTab; label: string; icon: React.ReactNode; shortcut: string }[] = [
+  { id: "overview",  label: "Overview",  icon: <LayoutGrid size={14} />, shortcut: SHORTCUTS.TAB_OVERVIEW.key },
+  { id: "work_done", label: "Work Done", icon: <Briefcase size={14} />,  shortcut: SHORTCUTS.TAB_WORK_DONE.key },
+  { id: "invoices",  label: "Invoices",  icon: <FileText size={14} />,   shortcut: SHORTCUTS.TAB_INVOICES.key },
 ];
 
 export default function MatterTabs({ active, onChange, matterTitle }: Props) {
@@ -23,19 +25,20 @@ export default function MatterTabs({ active, onChange, matterTitle }: Props) {
 
       {/* Tabs */}
       <div className="flex gap-0 px-4">
-        {tabs.map(({ id, label, icon }) => (
-          <button
-            key={id}
-            onClick={() => onChange(id)}
-            className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors cursor-default -mb-px ${
-              active === id
-                ? "border-neutral-900 text-neutral-800"
-                : "border-transparent text-neutral-500 hover:text-neutral-800 hover:border-neutral-300"
-            }`}
-          >
-            {icon}
-            {label}
-          </button>
+        {tabs.map(({ id, label, icon, shortcut }) => (
+          <Tooltip key={id} label={label} shortcutKey={shortcut} position="bottom">
+            <button
+              onClick={() => onChange(id)}
+              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors cursor-default -mb-px ${
+                active === id
+                  ? "border-neutral-900 text-neutral-800"
+                  : "border-transparent text-neutral-500 hover:text-neutral-800 hover:border-neutral-300"
+              }`}
+            >
+              {icon}
+              {label}
+            </button>
+          </Tooltip>
         ))}
       </div>
     </div>

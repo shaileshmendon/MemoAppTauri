@@ -1,6 +1,6 @@
 [package]
 name = "memoapp"
-version = "1.0.2"
+version = "1.1.2"
 description = "Memo — Billing & Matter Management for Indian Advocates"
 authors = []
 edition = "2021"
