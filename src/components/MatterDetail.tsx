@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
-import { Pencil, Trash2, Clock, Gavel, FileText, ChevronRight } from "lucide-react";
+import { Pencil, Trash2, Briefcase, FileText, ChevronRight } from "lucide-react";
 import { fmtRef } from "../types";
 import {
   fetchTimeEntries, fetchAppearances, fetchInvoices, deleteMatter,
   fetchContactPersonById,
 } from "../db";
 import type { Matter, TimeEntry, Appearance, Invoice, ContactPerson } from "../types";
-import type { MatterTab } from "./MatterTabs";
+import type { MatterTab } from "../types";
 import MatterParties from "./MatterParties";
 import BillUnbilledWork from "./BillUnbilledWork";
 import { format } from "date-fns";
@@ -60,7 +60,7 @@ export default function MatterDetail({ matter, onEdit, onDelete, onTabChange, on
     }
   }, [matter.id, matter.primary_client_contact_id, matter.primary_firm_contact_id, invoiceRefresh]);
 
-  const totalTime = timeEntries.reduce((s, t) => s + t.duration_minutes, 0);
+
   const totalFees = appearances.reduce((s, a) => s + a.fee_amount, 0);
   const totalInvoiced = invoices.reduce((s, i) => s + i.total_amount, 0);
 
@@ -117,20 +117,13 @@ export default function MatterDetail({ matter, onEdit, onDelete, onTabChange, on
       </div>
 
       {/* Stats */}
-      <div className="px-6 grid grid-cols-3 gap-3 mb-6">
+      <div className="px-6 grid grid-cols-2 gap-3 mb-6">
         <StatCard
-          icon={<Clock size={16} className="text-neutral-600" />}
-          label="Time Logged"
-          value={`${Math.floor(totalTime / 60)}h ${totalTime % 60}m`}
-          sub={`${timeEntries.length} entries`}
-          onClick={() => onTabChange?.("time")}
-        />
-        <StatCard
-          icon={<Gavel size={16} className="text-purple-500" />}
-          label="Appearances"
-          value={appearances.length.toString()}
-          sub={`${inr(totalFees)} fees`}
-          onClick={() => onTabChange?.("appearances")}
+          icon={<Briefcase size={16} className="text-indigo-500" />}
+          label="Work Done"
+          value={`${appearances.length + timeEntries.length} items`}
+          sub={`${inr(totalFees + (timeEntries.reduce((s, t) => s + (t.is_billable ? (t.duration_minutes / 60) * t.rate_per_hour : 0), 0)))} total value`}
+          onClick={() => onTabChange?.("work_done")}
         />
         <StatCard
           icon={<FileText size={16} className="text-emerald-500" />}

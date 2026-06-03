@@ -1,6 +1,5 @@
-import { LayoutGrid, Clock, Gavel, FileText } from "lucide-react";
-
-export type MatterTab = "overview" | "time" | "appearances" | "invoices";
+import { LayoutGrid, Briefcase, FileText } from "lucide-react";
+import type { MatterTab } from "../types";
 
 interface Props {
   active: MatterTab;
@@ -9,10 +8,9 @@ interface Props {
 }
 
 const tabs: { id: MatterTab; label: string; icon: React.ReactNode }[] = [
-  { id: "overview",     label: "Overview",     icon: <LayoutGrid size={14} /> },
-  { id: "time",         label: "Time",         icon: <Clock size={14} /> },
-  { id: "appearances",  label: "Appearances",  icon: <Gavel size={14} /> },
-  { id: "invoices",     label: "Invoices",     icon: <FileText size={14} /> },
+  { id: "overview",  label: "Overview",   icon: <LayoutGrid size={14} /> },
+  { id: "work_done", label: "Work Done",  icon: <Briefcase size={14} /> },
+  { id: "invoices",  label: "Invoices",   icon: <FileText size={14} /> },
 ];
 
 export default function MatterTabs({ active, onChange, matterTitle }: Props) {

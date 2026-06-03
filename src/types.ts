@@ -333,3 +333,4 @@ export interface WorkCapture {
 
 // UI-only types
 export type NavSection = "matters" | "outstanding" | "record_payment" | "dashboard" | "inbox" | "clients" | "firms" | "settings";
+export type MatterTab  = "overview" | "work_done" | "invoices";

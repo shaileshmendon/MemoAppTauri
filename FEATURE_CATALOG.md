@@ -1,7 +1,7 @@
 # Memo App — Feature Catalog
 
 > Last updated: 2026-06-03  
-> App version: 1.0.1
+> App version: 1.0.2
 
 ---
 
@@ -188,3 +188,72 @@
 - Phase 3: Per-client fee schedules
 - Phase 3: Batch invoice across multiple matters for one client
 - Menu bar quick entry (requires Tauri menu bar plugin)
+
+---
+
+## v1.0.2 — Unified Work Done Workflow
+
+### Navigation Change
+
+**Before:** Overview · Time · Appearances · Invoices  
+**After:** Overview · **Work Done** · Invoices
+
+The "Work Done" tab replaces the separate Time and Appearances tabs. All functionality is preserved — only the navigation structure changes.
+
+### Work Done Screen (`WorkDone.tsx`)
+
+A unified interface that merges all work types into a single chronological list.
+
+**Filter bar:** All | Appearances | Time Entries — filters the view without affecting data.
+
+**Unified list columns:**
+
+| Column | Description |
+|---|---|
+| Date | Entry date (YYYY-MM-DD, displayed as "3 Jun 2026") |
+| Type icon | ⚖ Gavel (Appearance) · 🕐 Clock (Time Entry) |
+| Description | Hearing type + court (appearances) · text description (time entries) |
+| Duration | Time entries: h/m · Appearances: — |
+| Amount | Fee or billable value |
+| Billing status | "Unbilled" (amber) or "Billed" (green) |
+
+**+ Add Work button:** Dropdown showing Appearance / Time Entry. Opens the appropriate inline form with fee schedule auto-fill.
+
+**Live timer:** Preserved — Start Timer / Stop in toolbar, auto-fills duration into new Time Entry form.
+
+**Bill Unbilled Work panel:** Appears at the bottom when unbilled items exist. Connects to the existing invoice generation workflow.
+
+**Toolbar summary:** Shows total entry count, total time (if any), and total unbilled value.
+
+### WorkItem abstraction
+
+Entries are represented as `WorkItem`:
+
+```ts
+type WorkItem =
+  | { kind: "appearance"; data: Appearance }
+  | { kind: "time";       data: TimeEntry }
+```
+
+Sorted by `date` descending. Future work types (Expenses, Quick Capture items) slot in by adding a new `kind`.
+
+### Matter Overview changes
+
+Old: Three stat cards — Time Logged · Appearances · Invoices  
+New: Two stat cards — **Work Done** (combined count + unbilled value) · Invoices
+
+Both cards click through to their respective tabs.
+
+### Files changed
+
+| File | Change |
+|---|---|
+| `src/types.ts` | `MatterTab = "overview" \| "work_done" \| "invoices"` |
+| `src/components/MatterTabs.tsx` | 4 tabs → 3 tabs; Work Done replaces Time + Appearances |
+| `src/components/WorkDone.tsx` | **New** — unified Work Done screen |
+| `src/components/MatterDetail.tsx` | 3 stat cards → 2; `onTabChange` updated |
+| `src/App.tsx` | Routing updated; WorkDone wired in |
+
+### Preserved (not deleted)
+
+`TimeEntries.tsx` and `Appearances.tsx` are kept intact — they are no longer routed as direct tabs but remain available for future reuse.

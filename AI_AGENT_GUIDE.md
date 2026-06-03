@@ -1,7 +1,7 @@
 # Memo App — AI Agent Guide
 
 > For Claude Code and other AI agents working on this codebase.  
-> Last updated: 2026-06-03
+> Last updated: 2026-06-03 (v1.0.2)
 
 ---
 
@@ -80,7 +80,8 @@ src/
     MatterList.tsx        ← Left panel list of matters
     MatterDetail.tsx      ← Matter overview tab (stats, info, Bill Unbilled Work)
     MatterForm.tsx        ← Create / edit matter
-    MatterTabs.tsx        ← Tab strip (Overview / Time / Appearances / Invoices)
+    MatterTabs.tsx        ← Tab strip (Overview / Work Done / Invoices)
+    WorkDone.tsx          ← Unified Work Done screen (replaces separate Time + Appearances tabs)
     MatterParties.tsx     ← Respondent / Petitioner list within matter
     Appearances.tsx       ← Appearances tab (with fee schedule auto-fill)
     TimeEntries.tsx       ← Time entries tab (with fee schedule auto-fill)
@@ -235,6 +236,36 @@ Test file: `src/lib/invoiceUtils.test.ts`
 
 ---
 
+## Work Done architecture (v1.0.2)
+
+### MatterTab values
+```
+"overview"  → MatterDetail component
+"work_done" → WorkDone component     ← NEW (replaces "time" + "appearances")
+"invoices"  → Invoices component
+```
+
+### WorkItem pattern
+`WorkDone.tsx` represents entries as a discriminated union:
+```ts
+type WorkItem =
+  | { kind: "appearance"; data: Appearance }
+  | { kind: "time";       data: TimeEntry }
+```
+Both are fetched from their respective DB tables, merged, sorted by `date` descending.
+
+### Adding a new work type in future
+1. Add a new `kind` to the `WorkItem` union
+2. Add a fetch call in `WorkDone.tsx` `useEffect`
+3. Add a row renderer component (e.g. `ExpenseRow`)
+4. Add to the `+ Add Work` dropdown
+5. No DB changes if the new type fits `time_entries` or `appearances`; new table only for genuinely different data shape
+
+### TimeEntries.tsx / Appearances.tsx status
+Both files are **kept** and fully functional. They are no longer rendered as standalone tabs but their form logic and list components are reusable. `WorkDone.tsx` contains its own inline form implementations (with the same fee schedule wiring) to avoid prop-drilling complexity.
+
+---
+
 ## Common gotchas
 
 | Symptom | Cause | Fix |
@@ -247,3 +278,6 @@ Test file: `src/lib/invoiceUtils.test.ts`
 | New nav item not showing | Not in `showMatterList` exclusion | Add to the exclusion array in `App.tsx` |
 | Fee not auto-filling | Fee schedule all zeros | User must set values in Settings → Fee Schedule |
 | Inbox badge stale | `refreshInboxCount` not called | Call `onAssigned()` / `onSaved()` callback after every mutation |
+| Tab "time" or "appearances" not found | Old `MatterTab` value used | Use `"work_done"` — Time and Appearances tabs were merged in v1.0.2 |
+| Work Done shows empty | New matter, no entries yet | Expected — empty state message shown |
+| `TimeEntries.tsx` / `Appearances.tsx` import fails | File was deleted | Both files are KEPT — they are just not routed as tabs anymore |

@@ -4,10 +4,10 @@ import Sidebar from "./components/Sidebar";
 import MatterList from "./components/MatterList";
 import MatterForm from "./components/MatterForm";
 import MatterDetail from "./components/MatterDetail";
-import MatterTabs, { type MatterTab } from "./components/MatterTabs";
-import TimeEntries from "./components/TimeEntries";
-import Appearances from "./components/Appearances";
+import MatterTabs from "./components/MatterTabs";
+import WorkDone from "./components/WorkDone";
 import Invoices from "./components/Invoices";
+import type { MatterTab } from "./types";
 import Dashboard from "./components/Dashboard";
 import OutstandingDues from "./components/OutstandingDues";
 import RecordPayment from "./components/RecordPayment";
@@ -185,8 +185,15 @@ export default function App() {
               }}
             />
           )}
-          {matterTab === "time"         && <TimeEntries matter={selectedMatter} />}
-          {matterTab === "appearances"  && <Appearances matter={selectedMatter} />}
+          {matterTab === "work_done"    && (
+            <WorkDone
+              matter={selectedMatter}
+              onInvoiceCreated={(invoiceId) => {
+                setPendingInvoiceId(invoiceId);
+                handleTabChange("invoices");
+              }}
+            />
+          )}
           {matterTab === "invoices"     && (
             <Invoices
               matter={selectedMatter}

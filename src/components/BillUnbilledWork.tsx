@@ -74,8 +74,9 @@ export default function BillUnbilledWork({ matter, onInvoiceCreated }: Props) {
   const toast = useToast();
 
   // Trigger state
-  const [unbilledCount, setUnbilledCount] = useState(0);
-  const [loadingCount, setLoadingCount]   = useState(true);
+  const [unbilledCount, setUnbilledCount]       = useState(0);
+  const [triggerDraftWarn, setTriggerDraftWarn] = useState(false);
+  const [loadingCount, setLoadingCount]         = useState(true);
 
   // Modal state
   const [open, setOpen]             = useState(false);
@@ -91,8 +92,14 @@ export default function BillUnbilledWork({ matter, onInvoiceCreated }: Props) {
     Promise.all([
       fetchAllBillableAppearances(matter.id),
       fetchAllBillableTimeEntries(matter.id),
-    ]).then(([apps, times]) => {
+      fetchDraftInvoiceSourceIds(matter.id),
+    ]).then(([apps, times, draftIds]) => {
       setUnbilledCount(apps.length + times.length);
+      // Warn on the trigger if any unbilled item is already in a draft
+      const anyInDraft =
+        apps.some(a => draftIds.has(a.id)) ||
+        times.some(t => draftIds.has(t.id));
+      setTriggerDraftWarn(anyInDraft);
       setLoadingCount(false);
     });
   }, [matter.id]);
@@ -234,6 +241,12 @@ export default function BillUnbilledWork({ matter, onInvoiceCreated }: Props) {
             <p className="text-xs text-emerald-700">
               {unbilledCount} item{unbilledCount !== 1 ? "s" : ""} ready to invoice
             </p>
+            {triggerDraftWarn && (
+              <p className="text-xs text-amber-600 mt-0.5 flex items-center gap-1">
+                <AlertTriangle size={11} />
+                Some items are already in a draft invoice
+              </p>
+            )}
           </div>
           <span className="text-xs font-medium text-emerald-700 bg-emerald-100 border border-emerald-200 rounded-lg px-3 py-1.5 group-hover:bg-emerald-200 transition-colors shrink-0">
             Generate Invoice →

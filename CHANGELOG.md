@@ -5,6 +5,45 @@ Format: [Semantic Versioning](https://semver.org). Dates are YYYY-MM-DD.
 
 ---
 
+## [1.0.2] — 2026-06-03
+
+### Unified Work Done Workflow
+
+#### Navigation change
+Replaced the four-tab matter navigation (Overview · Time · Appearances · Invoices) with three tabs (Overview · **Work Done** · Invoices).
+
+"Work Done" is a UI-only abstraction. The `appearances` and `time_entries` tables are unchanged.
+
+#### Added
+
+- **`src/components/WorkDone.tsx`** — Unified Work Done screen
+  - Chronological merged list of appearances + time entries
+  - Filter bar: All | Appearances | Time Entries
+  - `+ Add Work` dropdown → Appearance or Time Entry inline form
+  - Fee schedule auto-fill wired into both forms
+  - Duration input in hours (step 0.5) with minutes stored internally
+  - Live timer: Start / Stop → auto-fills duration into new Time Entry form
+  - Billing summary bar: total entry count, total time, total unbilled value
+  - `BillUnbilledWork` panel at bottom when unbilled items exist
+  - Empty state per filter selection
+  - WorkItem union type (`kind: "appearance" | "time"`) for future extensibility
+
+- **`MatterTab` type** updated: `"overview" | "work_done" | "invoices"`
+
+#### Changed
+
+- **`src/components/MatterTabs.tsx`** — 4 tabs → 3; `Briefcase` icon for Work Done
+- **`src/components/MatterDetail.tsx`** — 3 stat cards → 2 (Work Done + Invoices); `onTabChange("time"/"appearances")` → `onTabChange("work_done")`
+- **`src/App.tsx`** — routing updated; `<TimeEntries>` + `<Appearances>` replaced by `<WorkDone>`; `MatterTab` imported from `types.ts` instead of `MatterTabs.tsx`
+- **Version**: 1.0.1 → 1.0.2 across Sidebar, AboutModal, SupportModal, `tauri.conf.json`, `Cargo.toml`
+
+#### Preserved (not removed)
+
+- `src/components/TimeEntries.tsx` — kept, not routed as a tab
+- `src/components/Appearances.tsx` — kept, not routed as a tab
+
+---
+
 ## [1.1.0] — 2026-06-03
 
 ### Added
