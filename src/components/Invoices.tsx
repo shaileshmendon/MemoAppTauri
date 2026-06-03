@@ -21,7 +21,13 @@ import InvoicePDF from "../pdf/InvoicePDF";
 import { formatCurrency as inr } from "../lib/currency";
 import { useToast } from "./Toast";
 
-interface Props { matter: Matter; }
+interface Props {
+  matter: Matter;
+  /** When set, auto-expand this invoice ID (used after Bill Unbilled Work). */
+  autoExpandId?: string | null;
+  /** Called after the autoExpandId has been consumed so parent can clear it. */
+  onAutoExpandConsumed?: () => void;
+}
 
 const today  = () => format(new Date(), "yyyy-MM-dd");
 
@@ -44,7 +50,7 @@ function calcGST(subtotal: number, gstRate: number, firmState?: string, clientSt
 
 // ── Main component ─────────────────────────────────────────────────────────
 
-export default function Invoices({ matter }: Props) {
+export default function Invoices({ matter, autoExpandId, onAutoExpandConsumed }: Props) {
   const toast = useToast();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -55,6 +61,18 @@ export default function Invoices({ matter }: Props) {
     fetchInvoices(matter.id).then(setInvoices);
     loadProfile().then(setProfile);
   }, [matter.id]);
+
+  // Auto-expand the invoice created by Bill Unbilled Work
+  useEffect(() => {
+    if (!autoExpandId) return;
+    // Re-fetch so the newly created invoice is in the list
+    fetchInvoices(matter.id).then(fresh => {
+      setInvoices(fresh);
+      setExpanded(autoExpandId);
+      onAutoExpandConsumed?.();
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoExpandId]);
 
   const handleSave = async (inv: Invoice, billedAppIds: string[], billedTimeIds: string[]) => {
     try {

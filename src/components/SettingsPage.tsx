@@ -1,14 +1,15 @@
 import { useState, useEffect } from "react";
-import { Settings, Check, FlaskConical, Trash2, AlertTriangle, Download, Upload, ShieldCheck, RotateCcw } from "lucide-react";
-import { saveProfile, exportAllData, importAllData } from "../db";
+import { Settings, Check, FlaskConical, Trash2, AlertTriangle, Download, Upload, ShieldCheck, RotateCcw, IndianRupee } from "lucide-react";
+import { saveProfile, exportAllData, importAllData, loadFeeSchedule, saveFeeSchedule } from "../db";
 import type { BackupManifest } from "../db";
 import { loadDemoData, removeAllData } from "../demoData";
 import { save as dialogSave, open as dialogOpen } from "@tauri-apps/plugin-dialog";
 import { writeTextFile, readTextFile } from "@tauri-apps/plugin-fs";
 import LockSettings from "./LockSettings";
 import InvoiceDesigner from "./InvoiceDesigner";
-import type { Profile, InvoiceTemplate, InvoiceCustomization } from "../types";
-import { DEFAULT_PROFILE } from "../types";
+import type { Profile, InvoiceTemplate, InvoiceCustomization, FeeSchedule } from "../types";
+import { DEFAULT_PROFILE, DEFAULT_FEE_SCHEDULE } from "../types";
+import { COURT_APPEARANCE_TYPES, PROFESSIONAL_WORK_TYPES } from "../lib/feeSchedule";
 import { INDIAN_STATES } from "../lib/constants/states";
 import { useToast } from "./Toast";
 
@@ -19,14 +20,15 @@ interface Props {
 }
 
 const SECTIONS = [
-  { key: "identity", label: "Identity" },
-  { key: "contact",  label: "Address & Contact" },
-  { key: "bank",     label: "Bank Details" },
-  { key: "invoice",  label: "Invoice Settings" },
-  { key: "designer", label: "Invoice Designer" },
-  { key: "backup",   label: "Backup & Restore" },
-  { key: "security", label: "Security" },
-  { key: "demo",     label: "Demo Data" },
+  { key: "identity",     label: "Identity" },
+  { key: "contact",      label: "Address & Contact" },
+  { key: "bank",         label: "Bank Details" },
+  { key: "invoice",      label: "Invoice Settings" },
+  { key: "fee_schedule", label: "Fee Schedule" },
+  { key: "designer",     label: "Invoice Designer" },
+  { key: "backup",       label: "Backup & Restore" },
+  { key: "security",     label: "Security" },
+  { key: "demo",         label: "Demo Data" },
 ] as const;
 type Section = typeof SECTIONS[number]["key"];
 
@@ -50,6 +52,11 @@ export default function SettingsPage({ profile, onSaved, onLockChanged }: Props)
   const [restoreConfirm, setRestoreConfirm]   = useState(false);
   const [backupError, setBackupError]         = useState<string>("");
   const [restoreError, setRestoreError]       = useState<string>("");
+
+  // Fee Schedule state
+  const [feeSchedule, setFeeSchedule]           = useState<FeeSchedule>({ ...DEFAULT_FEE_SCHEDULE });
+  const [feeSaving, setFeeSaving]               = useState(false);
+  const [feeSaved, setFeeSaved]                 = useState(false);
 
   const handleExport = async () => {
     setBackupError("");
@@ -154,6 +161,40 @@ export default function SettingsPage({ profile, onSaved, onLockChanged }: Props)
     if (profile) setForm({ ...profile });
   }, [profile]);
 
+  // Load fee schedule on mount
+  useEffect(() => {
+    loadFeeSchedule().then(setFeeSchedule);
+  }, []);
+
+  const handleSaveFeeSchedule = async () => {
+    setFeeSaving(true);
+    try {
+      await saveFeeSchedule(feeSchedule);
+      setFeeSaved(true);
+      setTimeout(() => setFeeSaved(false), 2500);
+      toast.success("Fee schedule saved");
+    } catch {
+      toast.error("Failed to save fee schedule");
+    } finally {
+      setFeeSaving(false);
+    }
+  };
+
+  /** Set a fee for a specific appearance display label (e.g. "Mention"). */
+  const setAppearanceFee = (label: string, v: string) => {
+    const n = parseFloat(v) || 0;
+    setFeeSchedule(fs => ({
+      ...fs,
+      appearance_fees: { ...fs.appearance_fees, [label]: n },
+    }));
+  };
+
+  /** Set the default hourly rate. */
+  const setHourlyRate = (v: string) => {
+    const n = parseFloat(v) || 0;
+    setFeeSchedule(fs => ({ ...fs, default_hourly_rate: n }));
+  };
+
   const set = (k: keyof Profile, v: string) => setForm(f => ({ ...f, [k]: v }));
 
   const handleSave = async () => {
@@ -179,7 +220,7 @@ export default function SettingsPage({ profile, onSaved, onLockChanged }: Props)
       {/* Left nav */}
       <aside className="w-44 shrink-0 border-r border-neutral-100 bg-neutral-50 py-6 px-3">
         <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400 px-3 mb-3">Profile</p>
-        {(["identity", "contact", "bank", "invoice", "designer"] as const).map(key => {
+        {(["identity", "contact", "bank", "invoice", "fee_schedule", "designer"] as const).map(key => {
           const s = SECTIONS.find(s => s.key === key)!;
           return (
             <button key={key} onClick={() => setActiveSection(key)}
@@ -239,7 +280,7 @@ export default function SettingsPage({ profile, onSaved, onLockChanged }: Props)
               <h1 className="text-lg font-semibold text-neutral-900">Settings</h1>
               <p className="text-xs text-neutral-500">Your profile is used in generated invoices</p>
             </div>
-            {activeSection !== "demo" && activeSection !== "security" && (
+            {activeSection !== "demo" && activeSection !== "security" && activeSection !== "fee_schedule" && (
               <div className="ml-auto flex items-center gap-2">
                 {saved && (
                   <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
@@ -249,6 +290,19 @@ export default function SettingsPage({ profile, onSaved, onLockChanged }: Props)
                 <button onClick={handleSave} disabled={saving}
                   className="px-4 py-2 text-sm bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 disabled:opacity-50">
                   {saving ? "Saving…" : "Save Changes"}
+                </button>
+              </div>
+            )}
+            {activeSection === "fee_schedule" && (
+              <div className="ml-auto flex items-center gap-2">
+                {feeSaved && (
+                  <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
+                    <Check size={13} /> Saved
+                  </span>
+                )}
+                <button onClick={handleSaveFeeSchedule} disabled={feeSaving}
+                  className="px-4 py-2 text-sm bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 disabled:opacity-50">
+                  {feeSaving ? "Saving…" : "Save Schedule"}
                 </button>
               </div>
             )}
@@ -567,6 +621,56 @@ export default function SettingsPage({ profile, onSaved, onLockChanged }: Props)
             </div>
           )}
 
+          {/* ── Fee Schedule ─────────────────────────────────────────── */}
+          {activeSection === "fee_schedule" && (
+            <div className="space-y-6">
+              <div className="text-xs text-neutral-500 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3 leading-relaxed">
+                Set your standard fees here. These amounts will be{" "}
+                <strong>auto-filled</strong> whenever you log an appearance or
+                time entry — you can always override the value per entry.
+                Leave a field blank or at ₹0 to skip auto-fill for that type.
+              </div>
+
+              {/* Court Appearances */}
+              <FeeGroup
+                title="Court Appearances"
+                subtitle="Fixed fee per appearance"
+                types={COURT_APPEARANCE_TYPES}
+                fees={feeSchedule.appearance_fees}
+                onChange={setAppearanceFee}
+              />
+
+              {/* Professional Work */}
+              <FeeGroup
+                title="Professional Work"
+                subtitle="Fixed fee per session"
+                types={PROFESSIONAL_WORK_TYPES}
+                fees={feeSchedule.appearance_fees}
+                onChange={setAppearanceFee}
+              />
+
+              {/* Default hourly rate */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1">
+                  Time Billing
+                </p>
+                <p className="text-xs text-neutral-400 mb-3">
+                  Pre-filled on every new time entry. Override per entry.
+                </p>
+                <div className="flex items-center gap-3 max-w-xs">
+                  <label className="text-sm text-neutral-700 shrink-0 w-36">
+                    Default Hourly Rate
+                  </label>
+                  <FeeInput
+                    value={feeSchedule.default_hourly_rate}
+                    onChange={setHourlyRate}
+                  />
+                  <span className="text-sm text-neutral-400 shrink-0">/ hr</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ── Backup & Restore ─────────────────────────────────────── */}
           {activeSection === "backup" && (
             <div className="space-y-6">
@@ -751,6 +855,73 @@ export default function SettingsPage({ profile, onSaved, onLockChanged }: Props)
     </div>
   );
 }
+
+// ── Fee Schedule sub-components ───────────────────────────────────────────────
+
+/** A single ₹ number input — shared by FeeGroup rows and the hourly rate field. */
+function FeeInput({
+  value,
+  onChange,
+  placeholder = "0",
+}: {
+  value: number;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <div className="flex items-center border border-neutral-200 rounded-lg overflow-hidden flex-1 bg-white focus-within:border-neutral-800 focus-within:ring-1 focus-within:ring-neutral-200">
+      <span className="px-2.5 text-neutral-500 select-none flex items-center">
+        <IndianRupee size={14} strokeWidth={2} />
+      </span>
+      <input
+        type="number"
+        min={0}
+        step={500}
+        className="flex-1 py-2 pr-3 text-sm outline-none bg-transparent text-right tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+        value={value > 0 ? value : ""}
+        placeholder={placeholder}
+        onChange={e => onChange(e.target.value)}
+      />
+    </div>
+  );
+}
+
+/** One group of appearance types (Court Appearances or Professional Work). */
+function FeeGroup({
+  title,
+  subtitle,
+  types,
+  fees,
+  onChange,
+}: {
+  title: string;
+  subtitle: string;
+  types: { value: string; label: string }[];
+  fees: Record<string, number>;
+  onChange: (label: string, value: string) => void;
+}) {
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1">
+        {title}
+      </p>
+      <p className="text-xs text-neutral-400 mb-3">{subtitle}</p>
+      <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+        {types.map(({ label }) => (
+          <div key={label} className="flex items-center gap-3">
+            <label className="w-36 text-sm text-neutral-700 shrink-0">{label}</label>
+            <FeeInput
+              value={fees[label] ?? 0}
+              onChange={v => onChange(label, v)}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Invoice template preview ──────────────────────────────────────────────────
 
 function TemplatePreview({ template }: { template: InvoiceTemplate }) {
   if (template === "modern") return (

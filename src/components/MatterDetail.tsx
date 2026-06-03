@@ -8,6 +8,7 @@ import {
 import type { Matter, TimeEntry, Appearance, Invoice, ContactPerson } from "../types";
 import type { MatterTab } from "./MatterTabs";
 import MatterParties from "./MatterParties";
+import BillUnbilledWork from "./BillUnbilledWork";
 import { format } from "date-fns";
 import { formatINR as inr } from "../lib/currency";
 import { useToast } from "./Toast";
@@ -17,6 +18,8 @@ interface Props {
   onEdit: () => void;
   onDelete: () => void;
   onTabChange?: (tab: MatterTab) => void;
+  /** Called with the new invoice's ID after Bill Unbilled Work generates a draft. */
+  onInvoiceCreated?: (invoiceId: string) => void;
 }
 
 function fmt(iso: string) {
@@ -29,7 +32,7 @@ const statusBadge: Record<string, string> = {
   "on-hold": "bg-amber-100 text-amber-800",
 };
 
-export default function MatterDetail({ matter, onEdit, onDelete, onTabChange }: Props) {
+export default function MatterDetail({ matter, onEdit, onDelete, onTabChange, onInvoiceCreated }: Props) {
   const toast = useToast();
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
   const [appearances, setAppearances] = useState<Appearance[]>([]);
@@ -37,6 +40,8 @@ export default function MatterDetail({ matter, onEdit, onDelete, onTabChange }: 
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [primaryClientContact, setPrimaryClientContact] = useState<ContactPerson | null>(null);
   const [primaryFirmContact, setPrimaryFirmContact] = useState<ContactPerson | null>(null);
+
+  const [invoiceRefresh, setInvoiceRefresh] = useState(0);
 
   useEffect(() => {
     fetchTimeEntries(matter.id).then(setTimeEntries);
@@ -53,7 +58,7 @@ export default function MatterDetail({ matter, onEdit, onDelete, onTabChange }: 
     } else {
       setPrimaryFirmContact(null);
     }
-  }, [matter.id, matter.primary_client_contact_id, matter.primary_firm_contact_id]);
+  }, [matter.id, matter.primary_client_contact_id, matter.primary_firm_contact_id, invoiceRefresh]);
 
   const totalTime = timeEntries.reduce((s, t) => s + t.duration_minutes, 0);
   const totalFees = appearances.reduce((s, a) => s + a.fee_amount, 0);
@@ -213,12 +218,24 @@ export default function MatterDetail({ matter, onEdit, onDelete, onTabChange }: 
         </div>
       )}
 
+      {/* Bill Unbilled Work — appears when unbilled items exist */}
+      <BillUnbilledWork
+        matter={matter}
+        onInvoiceCreated={(invoiceId) => {
+          setInvoiceRefresh(r => r + 1);
+          onInvoiceCreated?.(invoiceId);
+        }}
+      />
+
       {matter.notes && (
         <div className="px-6 mt-4">
           <p className="text-xs text-neutral-400 mb-1">Notes</p>
           <p className="text-sm text-neutral-700 whitespace-pre-wrap">{matter.notes}</p>
         </div>
       )}
+
+      {/* Bottom padding */}
+      <div className="h-6" />
     </div>
   );
 }

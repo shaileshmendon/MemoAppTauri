@@ -4,8 +4,9 @@ import { v4 as uuid } from "uuid";
 import { format } from "date-fns";
 import {
   fetchTimeEntries, insertTimeEntry, updateTimeEntry, deleteTimeEntry,
+  loadFeeSchedule,
 } from "../db";
-import type { Matter, TimeEntry } from "../types";
+import type { Matter, TimeEntry, FeeSchedule } from "../types";
 import { formatINR as inr } from "../lib/currency";
 import { useToast } from "./Toast";
 
@@ -33,10 +34,12 @@ export default function TimeEntries({ matter }: Props) {
   const [isNew, setIsNew] = useState(false);
   const [timerActive, setTimerActive] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState(0);
+  const [feeSchedule, setFeeSchedule] = useState<FeeSchedule | null>(null);
   const intervalRef = useRef<number | null>(null);
 
   useEffect(() => {
     fetchTimeEntries(matter.id).then(setEntries);
+    loadFeeSchedule().then(setFeeSchedule);
   }, [matter.id]);
 
   // Live timer
@@ -49,10 +52,18 @@ export default function TimeEntries({ matter }: Props) {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [timerActive]);
 
+  const newBlankEntry = (): TimeEntry => {
+    const entry = blank(matter.id);
+    if (feeSchedule && feeSchedule.default_hourly_rate > 0) {
+      entry.rate_per_hour = feeSchedule.default_hourly_rate;
+    }
+    return entry;
+  };
+
   const stopTimer = () => {
     setTimerActive(false);
     const mins = Math.ceil(timerSeconds / 60);
-    const entry = blank(matter.id);
+    const entry = newBlankEntry();
     entry.duration_minutes = mins;
     setEditing(entry);
     setIsNew(true);
@@ -125,7 +136,7 @@ export default function TimeEntries({ matter }: Props) {
         )}
 
         <button
-          onClick={() => { setEditing(blank(matter.id)); setIsNew(true); }}
+          onClick={() => { setEditing(newBlankEntry()); setIsNew(true); }}
           className="flex items-center gap-1 px-3 py-1.5 text-xs bg-neutral-900 text-white rounded-lg hover:bg-neutral-800">
           <Plus size={12} /> Add Entry
         </button>
@@ -188,6 +199,18 @@ function EntryForm({
 }: { entry: TimeEntry; onSave: (t: TimeEntry) => void; onCancel: () => void }) {
   const [form, setForm] = useState(entry);
 
+  // Display duration as hours (decimal); storage stays in minutes
+  const durationHours = form.duration_minutes > 0
+    ? parseFloat((form.duration_minutes / 60).toFixed(2))
+    : "";
+
+  const handleDurationChange = (v: string) => {
+    const hrs = parseFloat(v);
+    // Round to nearest minute; treat empty / NaN as 0
+    const mins = isNaN(hrs) ? 0 : Math.round(hrs * 60);
+    setForm(f => ({ ...f, duration_minutes: mins }));
+  };
+
   const input = "border border-neutral-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-neutral-800 bg-white";
 
   return (
@@ -203,9 +226,14 @@ function EntryForm({
           value={form.description ?? ""} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
       </div>
       <div>
-        <p className="text-xs text-neutral-500 mb-1">Duration (min)</p>
-        <input type="number" min="0" className={input + " w-24"} value={form.duration_minutes}
-          onChange={(e) => setForm((f) => ({ ...f, duration_minutes: +e.target.value }))} />
+        <p className="text-xs text-neutral-500 mb-1">Duration (hrs)</p>
+        <input
+          type="number" min="0" step="0.5"
+          className={input + " w-24"}
+          value={durationHours}
+          placeholder="e.g. 1.5"
+          onChange={(e) => handleDurationChange(e.target.value)}
+        />
       </div>
       <div>
         <p className="text-xs text-neutral-500 mb-1">Rate / hr (₹)</p>

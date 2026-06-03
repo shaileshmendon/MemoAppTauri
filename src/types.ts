@@ -267,5 +267,69 @@ export const DEFAULT_PROFILE: Profile = {
   invoiceCustomization: { ...DEFAULT_CUSTOMIZATION },
 };
 
+// ── Fee Schedule ──────────────────────────────────────────────────────────────
+
+/**
+ * Standard fee schedule — stored as JSON in the `settings` table under key
+ * `fee_schedule`.
+ *
+ * Storage format:
+ * {
+ *   "appearance_fees": {
+ *     "Mention": 5000,
+ *     "Hearing": 15000,
+ *     ...
+ *   },
+ *   "default_hourly_rate": 1500
+ * }
+ *
+ * Keys inside `appearance_fees` are the canonical display labels
+ * (e.g. "Mention", "Urgent Mention") — NOT the HearingType enum values.
+ * Only types with a fee > 0 are stored (sparse).
+ *
+ * Look up fees via `getFeeForHearingType()` in `src/lib/feeSchedule.ts`.
+ */
+export interface FeeSchedule {
+  /** Map of display label → fixed INR amount for appearances. Sparse. */
+  appearance_fees: Record<string, number>;
+  /** Default hourly rate pre-filled on new time entries. 0 = no auto-fill. */
+  default_hourly_rate: number;
+}
+
+export const DEFAULT_FEE_SCHEDULE: FeeSchedule = {
+  appearance_fees:     {},
+  default_hourly_rate: 0,
+};
+
+// ── Work Capture (Quick Capture / Inbox) ─────────────────────────────────────
+
+export type WorkCaptureType = "appearance" | "time";
+
+/**
+ * A quick-captured work item that may not yet be assigned to a matter.
+ * `matter_id IS NULL`     → unassigned, appears in the Inbox.
+ * `matter_id IS NOT NULL` → assigned; `converted_id` is the ID of the
+ *                           downstream `appearance` or `time_entry` record.
+ */
+export interface WorkCapture {
+  id: string;
+  captured_at: string;       // ISO timestamp — when the user pressed Save
+  work_date: string;         // YYYY-MM-DD — the date the work actually happened
+  work_type: WorkCaptureType;
+  description?: string;
+  // Appearance fields (used when work_type = 'appearance')
+  hearing_type?: HearingType;
+  court?: string;
+  fee_amount: number;
+  // Time-entry fields (used when work_type = 'time')
+  duration_minutes: number;
+  rate_per_hour: number;
+  is_billable: number;       // 0 | 1
+  // Assignment
+  matter_id?: string;        // NULL until assigned
+  assigned_at?: string;      // ISO timestamp set when assigned
+  converted_id?: string;     // ID of created appearance / time_entry
+}
+
 // UI-only types
-export type NavSection = "matters" | "outstanding" | "record_payment" | "dashboard" | "clients" | "firms" | "settings";
+export type NavSection = "matters" | "outstanding" | "record_payment" | "dashboard" | "inbox" | "clients" | "firms" | "settings";

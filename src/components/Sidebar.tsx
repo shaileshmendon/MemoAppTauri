@@ -1,24 +1,27 @@
-import { Scale, AlertCircle, LayoutDashboard, Users, Building2, Settings, Info, Lock, ReceiptText } from "lucide-react";
+import { Scale, AlertCircle, LayoutDashboard, Users, Building2, Settings, Info, Lock, ReceiptText, Inbox, Zap } from "lucide-react";
 import type { NavSection } from "../types";
 
 interface Props {
   active: NavSection;
   onChange: (s: NavSection) => void;
   onAbout: () => void;
-  onLock?: () => void; // only shown when lock is enabled
+  onLock?: () => void;
+  inboxCount?: number;
+  onQuickCapture?: () => void;
 }
 
 const items: { id: NavSection; label: string; icon: React.ReactNode; group?: string }[] = [
-  { id: "dashboard",   label: "Dashboard",         icon: <LayoutDashboard size={18} /> },
-  { id: "matters",     label: "Matters",           icon: <Scale size={18} />,          group: "Work" },
-  { id: "outstanding",    label: "Outstanding Dues",   icon: <AlertCircle size={18} />,   group: "Work" },
-  { id: "record_payment", label: "Record Payment",     icon: <ReceiptText size={18} />,   group: "Work" },
-  { id: "clients",     label: "Clients",           icon: <Users size={18} />,          group: "Contacts" },
-  { id: "firms",       label: "AOR / Firms",        icon: <Building2 size={18} />,      group: "Contacts" },
-  { id: "settings",    label: "Settings",          icon: <Settings size={18} />,       group: "Account" },
+  { id: "dashboard",      label: "Dashboard",       icon: <LayoutDashboard size={18} /> },
+  { id: "inbox",          label: "Inbox",           icon: <Inbox size={18} />,           group: "Work" },
+  { id: "matters",        label: "Matters",         icon: <Scale size={18} />,            group: "Work" },
+  { id: "outstanding",    label: "Outstanding Dues", icon: <AlertCircle size={18} />,     group: "Work" },
+  { id: "record_payment", label: "Record Payment",  icon: <ReceiptText size={18} />,      group: "Work" },
+  { id: "clients",        label: "Clients",         icon: <Users size={18} />,            group: "Contacts" },
+  { id: "firms",          label: "AOR / Firms",     icon: <Building2 size={18} />,        group: "Contacts" },
+  { id: "settings",       label: "Settings",        icon: <Settings size={18} />,         group: "Account" },
 ];
 
-export default function Sidebar({ active, onChange, onAbout, onLock }: Props) {
+export default function Sidebar({ active, onChange, onAbout, onLock, inboxCount = 0, onQuickCapture }: Props) {
   let lastGroup: string | undefined;
 
   return (
@@ -30,6 +33,20 @@ export default function Sidebar({ active, onChange, onAbout, onLock }: Props) {
         </div>
         <span className="text-white font-semibold text-sm tracking-tight">Memo</span>
       </div>
+
+      {/* Quick Capture button */}
+      {onQuickCapture && (
+        <div className="px-2 pt-2">
+          <button
+            onClick={onQuickCapture}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-white/10 text-white hover:bg-white/15 transition-colors mb-1"
+          >
+            <Zap size={14} className="text-yellow-400 shrink-0" />
+            <span className="flex-1 text-left">Quick Capture</span>
+            <kbd className="text-[10px] text-neutral-500 bg-neutral-800 rounded px-1 py-0.5">⌘K</kbd>
+          </button>
+        </div>
+      )}
 
       <nav className="flex-1 px-2 py-1 overflow-y-auto">
         {items.map(({ id, label, icon, group }) => {
@@ -51,7 +68,13 @@ export default function Sidebar({ active, onChange, onAbout, onLock }: Props) {
                 }`}
               >
                 {icon}
-                <span className="truncate">{label}</span>
+                <span className="truncate flex-1 text-left">{label}</span>
+                {/* Inbox badge */}
+                {id === "inbox" && inboxCount > 0 && (
+                  <span className="bg-amber-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shrink-0">
+                    {inboxCount > 99 ? "99+" : inboxCount}
+                  </span>
+                )}
               </button>
             </div>
           );

@@ -1,5 +1,7 @@
 import Database from "@tauri-apps/plugin-sql";
-import type { Matter, TimeEntry, Appearance, Invoice, Payment, Client, Firm, Profile, MatterParty, ContactPerson } from "./types";
+import { v4 as uuid } from "uuid";
+import type { Matter, TimeEntry, Appearance, Invoice, Payment, Client, Firm, Profile, MatterParty, ContactPerson, FeeSchedule, WorkCapture } from "./types";
+import { DEFAULT_FEE_SCHEDULE } from "./types";
 import { applyEffectiveStatus } from "./lib/invoiceUtils";
 
 let _db: Database | null = null;
@@ -232,6 +234,30 @@ async function migrate(db: Database) {
     ON invoices (invoice_number)
   `);
 
+  // ── Work Captures (Inbox) ─────────────────────────────────────────────────
+  // Staging table for quick-capture entries that may not yet be assigned to a
+  // matter.  matter_id IS NULL  = unassigned (inbox).
+  // matter_id IS NOT NULL = converted; converted_id references the created
+  // appearance or time_entry for full audit trail.
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS work_captures (
+      id               TEXT PRIMARY KEY,
+      captured_at      TEXT NOT NULL,
+      work_date        TEXT NOT NULL,
+      work_type        TEXT NOT NULL,
+      description      TEXT,
+      hearing_type     TEXT,
+      court            TEXT,
+      fee_amount       REAL NOT NULL DEFAULT 0,
+      duration_minutes INTEGER NOT NULL DEFAULT 0,
+      rate_per_hour    REAL NOT NULL DEFAULT 0,
+      is_billable      INTEGER NOT NULL DEFAULT 1,
+      matter_id        TEXT,
+      assigned_at      TEXT,
+      converted_id     TEXT
+    );
+  `);
+
   await db.execute(`PRAGMA foreign_keys = ON;`);
 }
 
@@ -334,7 +360,7 @@ export async function fetchTimeEntries(matterId: string): Promise<TimeEntry[]> {
 export async function fetchAllBillableTimeEntries(matterId: string): Promise<TimeEntry[]> {
   const db = await getDb();
   return db.select<TimeEntry[]>(
-    "SELECT * FROM time_entries WHERE matter_id = ? AND is_billable = 1 AND duration_minutes > 0 ORDER BY date ASC",
+    "SELECT * FROM time_entries WHERE matter_id = ? AND is_billable = 1 AND is_billed = 0 AND duration_minutes > 0 ORDER BY date ASC",
     [matterId]
   );
 }
@@ -384,7 +410,7 @@ export async function fetchAppearances(matterId: string): Promise<Appearance[]> 
 export async function fetchAllBillableAppearances(matterId: string): Promise<Appearance[]> {
   const db = await getDb();
   return db.select<Appearance[]>(
-    "SELECT * FROM appearances WHERE matter_id = ? AND fee_amount > 0 ORDER BY date ASC",
+    "SELECT * FROM appearances WHERE matter_id = ? AND is_billed = 0 AND fee_amount > 0 ORDER BY date ASC",
     [matterId]
   );
 }
@@ -422,6 +448,30 @@ export async function deleteAppearance(id: string): Promise<void> {
 }
 
 // ─── Invoices ──────────────────────────────────────────────────────────────
+
+/**
+ * Returns the set of appearance/time_entry IDs that are already referenced
+ * inside the line_items_data of draft invoices for this matter.
+ * Used by BillUnbilledWork to prevent duplicate inclusion.
+ */
+export async function fetchDraftInvoiceSourceIds(matterId: string): Promise<Set<string>> {
+  const db = await getDb();
+  const rows = await db.select<{ line_items_data: string | null }[]>(
+    `SELECT line_items_data FROM invoices WHERE matter_id = ? AND status = 'draft'`,
+    [matterId]
+  );
+  const ids = new Set<string>();
+  for (const row of rows) {
+    if (!row.line_items_data) continue;
+    try {
+      const items = JSON.parse(row.line_items_data) as { sourceId?: string }[];
+      for (const item of items) {
+        if (item.sourceId) ids.add(item.sourceId);
+      }
+    } catch { /* malformed JSON — skip */ }
+  }
+  return ids;
+}
 
 export async function fetchInvoices(matterId: string): Promise<Invoice[]> {
   const db = await getDb();
@@ -639,6 +689,83 @@ export async function isProfileSetup(): Promise<boolean> {
   return p !== null && (p.advocateName.trim() !== "" || p.firmName.trim() !== "");
 }
 
+// ── Fee Schedule ──────────────────────────────────────────────────────────────
+
+/**
+ * Load the advocate's standard fee schedule from the settings table.
+ *
+ * Expected storage format (v2, current):
+ *   { "appearance_fees": { "Mention": 5000, ... }, "default_hourly_rate": 1500 }
+ *
+ * Legacy format (v1 — flat HearingType enum keys):
+ *   { "mention": 5000, "urgent_mention": 10000, ..., "hourly_rate": 1500 }
+ *
+ * If v1 data is detected, it is migrated to v2 on read and the new format is
+ * immediately persisted so subsequent loads are fast.
+ */
+export async function loadFeeSchedule(): Promise<FeeSchedule> {
+  const raw = await getSetting("fee_schedule");
+  if (!raw) return { ...DEFAULT_FEE_SCHEDULE };
+
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    return { ...DEFAULT_FEE_SCHEDULE };
+  }
+
+  // ── v2 format detection ────────────────────────────────────────────────────
+  if ("appearance_fees" in parsed) {
+    return {
+      appearance_fees:     (parsed.appearance_fees as Record<string, number>) ?? {},
+      default_hourly_rate: typeof parsed.default_hourly_rate === "number"
+        ? parsed.default_hourly_rate
+        : 0,
+    };
+  }
+
+  // ── v1 → v2 migration ─────────────────────────────────────────────────────
+  // The old format stored enum values as keys (e.g. "mention", "urgent_mention").
+  // Map them to the canonical display labels used by v2.
+  const { HEARING_TYPE_LABELS } = await import("./lib/feeSchedule");
+
+  const appearance_fees: Record<string, number> = {};
+  for (const [enumKey, label] of Object.entries(HEARING_TYPE_LABELS)) {
+    const val = parsed[enumKey];
+    if (typeof val === "number" && val > 0) {
+      appearance_fees[label] = val;
+    }
+  }
+
+  const default_hourly_rate =
+    typeof parsed.hourly_rate === "number" ? parsed.hourly_rate : 0;
+
+  const migrated: FeeSchedule = { appearance_fees, default_hourly_rate };
+
+  // Persist migrated format so next load is instant
+  await setSetting("fee_schedule", JSON.stringify(migrated));
+
+  return migrated;
+}
+
+/**
+ * Persist the fee schedule to the settings table.
+ * Only appearance types with fee > 0 are stored (sparse).
+ * Uses UPSERT — safe on first save and subsequent updates.
+ */
+export async function saveFeeSchedule(schedule: FeeSchedule): Promise<void> {
+  // Strip zero-value entries before storing to keep the JSON clean and sparse
+  const sparse: Record<string, number> = {};
+  for (const [label, fee] of Object.entries(schedule.appearance_fees)) {
+    if (fee > 0) sparse[label] = fee;
+  }
+  const toStore: FeeSchedule = {
+    appearance_fees:     sparse,
+    default_hourly_rate: schedule.default_hourly_rate,
+  };
+  await setSetting("fee_schedule", JSON.stringify(toStore));
+}
+
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
 async function sha256(text: string): Promise<string> {
@@ -816,6 +943,109 @@ export async function fetchAllPaymentsLog(): Promise<PaymentLogRow[]> {
   return [...invoiceRows, ...advanceRows].sort(
     (a, b) => b.payment_date.localeCompare(a.payment_date)
   );
+}
+
+// ─── Work Captures ────────────────────────────────────────────────────────────
+
+/** Insert a new quick-capture record (matter_id may be null). */
+export async function insertWorkCapture(w: WorkCapture): Promise<void> {
+  const db = await getDb();
+  await db.execute(
+    `INSERT INTO work_captures
+       (id,captured_at,work_date,work_type,description,hearing_type,court,
+        fee_amount,duration_minutes,rate_per_hour,is_billable,
+        matter_id,assigned_at,converted_id)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [w.id, w.captured_at, w.work_date, w.work_type,
+     w.description ?? null, w.hearing_type ?? null, w.court ?? null,
+     w.fee_amount, w.duration_minutes, w.rate_per_hour, w.is_billable,
+     w.matter_id ?? null, w.assigned_at ?? null, w.converted_id ?? null]
+  );
+}
+
+/** Fetch all unassigned captures (inbox). */
+export async function fetchInboxCaptures(): Promise<WorkCapture[]> {
+  const db = await getDb();
+  return db.select<WorkCapture[]>(
+    `SELECT * FROM work_captures WHERE matter_id IS NULL ORDER BY captured_at DESC`
+  );
+}
+
+/** Return count of unassigned captures — used for sidebar badge. */
+export async function fetchInboxCount(): Promise<number> {
+  const db = await getDb();
+  const rows = await db.select<{ cnt: number }[]>(
+    `SELECT COUNT(*) AS cnt FROM work_captures WHERE matter_id IS NULL`
+  );
+  return rows[0]?.cnt ?? 0;
+}
+
+/** Update a capture (e.g. edit description before assigning). */
+export async function updateWorkCapture(w: WorkCapture): Promise<void> {
+  const db = await getDb();
+  await db.execute(
+    `UPDATE work_captures SET
+       work_date=?,work_type=?,description=?,hearing_type=?,court=?,
+       fee_amount=?,duration_minutes=?,rate_per_hour=?,is_billable=?,
+       matter_id=?,assigned_at=?,converted_id=?
+     WHERE id=?`,
+    [w.work_date, w.work_type, w.description ?? null,
+     w.hearing_type ?? null, w.court ?? null,
+     w.fee_amount, w.duration_minutes, w.rate_per_hour, w.is_billable,
+     w.matter_id ?? null, w.assigned_at ?? null, w.converted_id ?? null,
+     w.id]
+  );
+}
+
+/** Delete a capture (discard from inbox). */
+export async function deleteWorkCapture(id: string): Promise<void> {
+  const db = await getDb();
+  await db.execute(`DELETE FROM work_captures WHERE id = ?`, [id]);
+}
+
+/**
+ * Assign a capture to a matter:
+ * 1. Converts to an appearance or time_entry.
+ * 2. Stamps matter_id, assigned_at, and converted_id on the capture.
+ * Returns the ID of the created downstream record.
+ */
+export async function assignWorkCapture(
+  capture: WorkCapture,
+  matterId: string,
+): Promise<string> {
+  const db = await getDb();
+  const now   = new Date().toISOString();
+  const newId = uuid();
+
+  if (capture.work_type === "appearance") {
+    await db.execute(
+      `INSERT INTO appearances (id,matter_id,date,court,hearing_type,fee_amount,is_billed,notes)
+       VALUES (?,?,?,?,?,?,0,?)`,
+      [newId, matterId, capture.work_date,
+       capture.court ?? null,
+       capture.hearing_type ?? "other",
+       capture.fee_amount,
+       capture.description ?? null]
+    );
+  } else {
+    await db.execute(
+      `INSERT INTO time_entries (id,matter_id,date,description,duration_minutes,rate_per_hour,is_billable,is_billed)
+       VALUES (?,?,?,?,?,?,?,0)`,
+      [newId, matterId, capture.work_date,
+       capture.description ?? null,
+       capture.duration_minutes,
+       capture.rate_per_hour,
+       capture.is_billable]
+    );
+  }
+
+  // Stamp the capture — preserve it for audit trail, just mark it assigned
+  await db.execute(
+    `UPDATE work_captures SET matter_id=?,assigned_at=?,converted_id=? WHERE id=?`,
+    [matterId, now, newId, capture.id]
+  );
+
+  return newId;
 }
 
 // ─── Contact Persons ──────────────────────────────────────────────────────────

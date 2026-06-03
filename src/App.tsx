@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import "./index.css";
 import Sidebar from "./components/Sidebar";
 import MatterList from "./components/MatterList";
@@ -17,7 +17,9 @@ import SettingsPage from "./components/SettingsPage";
 import AboutModal from "./components/AboutModal";
 import ScreenshotHelper from "./components/ScreenshotHelper";
 import LockScreen from "./components/LockScreen";
-import { isProfileSetup, loadProfile, getLock } from "./db";
+import QuickCapture from "./components/QuickCapture";
+import Inbox from "./components/Inbox";
+import { isProfileSetup, loadProfile, getLock, fetchInboxCount } from "./db";
 import type { AppLock } from "./db";
 import type { Matter, NavSection, Profile } from "./types";
 
@@ -36,6 +38,10 @@ export default function App() {
   const [showAbout, setShowAbout] = useState(false);
   const [lock, setLock] = useState<AppLock | null | "loading">("loading");
   const [unlocked, setUnlocked] = useState(false);
+  const [showCapture, setShowCapture] = useState(false);
+  const [inboxCount, setInboxCount] = useState(0);
+  /** Invoice ID to auto-expand when the Invoices tab opens after Bill Unbilled Work. */
+  const [pendingInvoiceId, setPendingInvoiceId] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([isProfileSetup(), loadProfile(), getLock()]).then(([ready, prof, lk]) => {
@@ -45,6 +51,23 @@ export default function App() {
       // If no lock, consider immediately unlocked
       if (!lk) setUnlocked(true);
     });
+    fetchInboxCount().then(setInboxCount);
+  }, []);
+
+  // ⌘K global shortcut — open Quick Capture
+  const refreshInboxCount = useCallback(() => {
+    fetchInboxCount().then(setInboxCount);
+  }, []);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.metaKey && e.key === "k") {
+        e.preventDefault();
+        setShowCapture(c => !c);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
   }, []);
 
   // Called from SettingsPage when user sets/removes lock
@@ -110,6 +133,7 @@ export default function App() {
     if (nav === "dashboard")      return <Dashboard onEditProfile={() => setNav("settings")} />;
     if (nav === "outstanding")    return <OutstandingDues />;
     if (nav === "record_payment") return <RecordPayment />;
+    if (nav === "inbox")          return <Inbox onAssigned={refreshInboxCount} />;
     if (nav === "clients")     return <ContactList type="client" />;
     if (nav === "firms")       return <ContactList type="firm" />;
     if (nav === "settings")    return <SettingsPage profile={profile} onSaved={handleProfileSaved} onLockChanged={handleLockChanged} />;
@@ -155,17 +179,27 @@ export default function App() {
               onEdit={() => setEditing(true)}
               onDelete={handleDeleteMatter}
               onTabChange={handleTabChange}
+              onInvoiceCreated={(invoiceId) => {
+                setPendingInvoiceId(invoiceId);
+                handleTabChange("invoices");
+              }}
             />
           )}
           {matterTab === "time"         && <TimeEntries matter={selectedMatter} />}
           {matterTab === "appearances"  && <Appearances matter={selectedMatter} />}
-          {matterTab === "invoices"     && <Invoices matter={selectedMatter} />}
+          {matterTab === "invoices"     && (
+            <Invoices
+              matter={selectedMatter}
+              autoExpandId={pendingInvoiceId}
+              onAutoExpandConsumed={() => setPendingInvoiceId(null)}
+            />
+          )}
         </div>
       </div>
     );
   };
 
-  const showMatterList = !["dashboard", "outstanding", "record_payment", "clients", "firms", "settings"].includes(nav);
+  const showMatterList = !["dashboard", "outstanding", "record_payment", "inbox", "clients", "firms", "settings"].includes(nav);
 
   // Show splash while checking
   if (profileReady === null || lock === "loading") {
@@ -202,6 +236,14 @@ export default function App() {
       {/* About modal */}
       {showAbout && <AboutModal onClose={() => setShowAbout(false)} />}
 
+      {/* Quick Capture palette — ⌘K */}
+      {showCapture && (
+        <QuickCapture
+          onClose={() => setShowCapture(false)}
+          onSaved={() => { setShowCapture(false); refreshInboxCount(); }}
+        />
+      )}
+
       {/* Dev-only screenshot helper — ⌘⇧D to toggle */}
       <ScreenshotHelper />
 
@@ -211,6 +253,8 @@ export default function App() {
           onChange={handleNavChange}
           onAbout={() => setShowAbout(true)}
           onLock={lock ? () => setUnlocked(false) : undefined}
+          inboxCount={inboxCount}
+          onQuickCapture={() => setShowCapture(true)}
         />
 
         {showMatterList && (

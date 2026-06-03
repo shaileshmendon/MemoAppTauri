@@ -4,8 +4,10 @@ import { v4 as uuid } from "uuid";
 import { format } from "date-fns";
 import {
   fetchAppearances, insertAppearance, updateAppearance, deleteAppearance,
+  loadFeeSchedule,
 } from "../db";
-import type { Matter, Appearance, HearingType } from "../types";
+import type { Matter, Appearance, HearingType, FeeSchedule } from "../types";
+import { getFeeForHearingType, COURT_APPEARANCE_TYPES, PROFESSIONAL_WORK_TYPES } from "../lib/feeSchedule";
 import { formatINR as inr } from "../lib/currency";
 import { useToast } from "./Toast";
 
@@ -18,36 +20,12 @@ const blank = (matterId: string, court?: string): Appearance => ({
   court: court ?? "", hearing_type: "mention", fee_amount: 0, is_billed: 0, notes: "",
 });
 
-// ── Work type definitions ──────────────────────────────────────────────────
+// ── Work type definitions — sourced from the canonical module ─────────────────
+// COURT_APPEARANCES and PROFESSIONAL_WORK are imported from lib/feeSchedule.ts
+// so labels are defined in exactly one place.
 
-const COURT_APPEARANCES: { value: HearingType; label: string }[] = [
-  { value: "mention",        label: "Mention" },
-  { value: "urgent_mention", label: "Urgent Mention" },
-  { value: "hearing",        label: "Hearing" },
-  { value: "adjournment",    label: "Adjournment" },
-  { value: "circulation",    label: "Circulation" },
-  { value: "arguments",      label: "Arguments" },
-  { value: "evidence",       label: "Evidence" },
-  { value: "judgement",      label: "Judgment / Order" },
-  { value: "admission",      label: "Admission" },
-  { value: "caveat",         label: "Caveat" },
-  { value: "board",          label: "Board / NCLT" },
-];
-
-const PROFESSIONAL_WORK: { value: HearingType; label: string }[] = [
-  { value: "conference",  label: "Conference" },
-  { value: "drafting",    label: "Drafting" },
-  { value: "research",    label: "Research" },
-  { value: "advice",      label: "Advice / Opinion" },
-  { value: "retainer",    label: "Retainer" },
-  { value: "filing",      label: "Filing" },
-  { value: "other",       label: "Other" },
-];
-
-const ALL_TYPES = [...COURT_APPEARANCES, ...PROFESSIONAL_WORK];
-
-const LABEL_MAP: Record<HearingType, string> = Object.fromEntries(
-  ALL_TYPES.map(({ value, label }) => [value, label])
+const LABEL_MAP = Object.fromEntries(
+  [...COURT_APPEARANCE_TYPES, ...PROFESSIONAL_WORK_TYPES].map(({ value, label }) => [value, label])
 ) as Record<HearingType, string>;
 
 // badge colour per category
@@ -79,9 +57,11 @@ export default function Appearances({ matter }: Props) {
   const [appearances, setAppearances] = useState<Appearance[]>([]);
   const [editing, setEditing] = useState<Appearance | null>(null);
   const [isNew, setIsNew] = useState(false);
+  const [feeSchedule, setFeeSchedule] = useState<FeeSchedule | null>(null);
 
   useEffect(() => {
     fetchAppearances(matter.id).then(setAppearances);
+    loadFeeSchedule().then(setFeeSchedule);
   }, [matter.id]);
 
   const handleSave = async (a: Appearance) => {
@@ -126,7 +106,14 @@ export default function Appearances({ matter }: Props) {
           {appearances.length} entries · {inr(total)} total
         </span>
         <button
-          onClick={() => { setEditing(blank(matter.id, matter.court)); setIsNew(true); }}
+          onClick={() => {
+            const entry = blank(matter.id, matter.court);
+            // Pre-fill fee from schedule for the default hearing type (mention)
+            const defaultFee = getFeeForHearingType("mention", feeSchedule);
+            if (defaultFee > 0) entry.fee_amount = defaultFee;
+            setEditing(entry);
+            setIsNew(true);
+          }}
           className="flex items-center gap-1 px-3 py-1.5 text-xs bg-neutral-900 text-white rounded-lg hover:bg-neutral-800">
           <Plus size={12} /> Add Entry
         </button>
@@ -136,6 +123,7 @@ export default function Appearances({ matter }: Props) {
       {editing && (
         <AppearanceForm
           entry={editing}
+          feeSchedule={feeSchedule}
           onSave={handleSave}
           onCancel={() => { setEditing(null); setIsNew(false); }}
         />
@@ -202,9 +190,10 @@ export default function Appearances({ matter }: Props) {
 // ── Inline form ────────────────────────────────────────────────────────────
 
 function AppearanceForm({
-  entry, onSave, onCancel,
+  entry, feeSchedule, onSave, onCancel,
 }: {
   entry: Appearance;
+  feeSchedule: FeeSchedule | null;
   onSave: (a: Appearance) => void;
   onCancel: () => void;
 }) {
@@ -212,7 +201,23 @@ function AppearanceForm({
   const inp = "border border-neutral-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-neutral-800 bg-white";
 
   // Determine whether to show "Court" field — only relevant for actual court appearances
-  const isCourtWork = COURT_APPEARANCES.some((x) => x.value === form.hearing_type);
+  const isCourtWork = COURT_APPEARANCE_TYPES.some((x) => x.value === form.hearing_type);
+
+  /**
+   * When the work type changes, always apply the scheduled fee for the new type
+   * (if one is configured). The user can manually override it afterwards.
+   * If no fee is scheduled for the new type, the current fee is preserved.
+   */
+  const handleTypeChange = (newType: HearingType) => {
+    setForm(f => {
+      const scheduledFee = getFeeForHearingType(newType, feeSchedule);
+      return {
+        ...f,
+        hearing_type: newType,
+        fee_amount: scheduledFee,
+      };
+    });
+  };
 
   return (
     <div className="px-6 py-4 bg-neutral-100 border-b border-neutral-200 space-y-3">
@@ -230,15 +235,15 @@ function AppearanceForm({
           <select
             className={inp + " w-full"}
             value={form.hearing_type}
-            onChange={(e) => setForm((f) => ({ ...f, hearing_type: e.target.value as HearingType }))}
+            onChange={(e) => handleTypeChange(e.target.value as HearingType)}
           >
             <optgroup label="── Court Appearances ──">
-              {COURT_APPEARANCES.map(({ value, label }) => (
+              {COURT_APPEARANCE_TYPES.map(({ value, label }) => (
                 <option key={value} value={value}>{label}</option>
               ))}
             </optgroup>
             <optgroup label="── Professional Work ──">
-              {PROFESSIONAL_WORK.map(({ value, label }) => (
+              {PROFESSIONAL_WORK_TYPES.map(({ value, label }) => (
                 <option key={value} value={value}>{label}</option>
               ))}
             </optgroup>
