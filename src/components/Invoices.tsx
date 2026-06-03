@@ -11,7 +11,7 @@ import {
   fetchAllBillableAppearances, fetchAllBillableTimeEntries,
   markAppearancesBilled, markTimeEntriesBilled,
   fetchMatterParties, fetchContactPersons,
-  loadProfile,
+  loadProfile, nextInvoiceNumber,
 } from "../db";
 import type {
   Matter, Invoice, Payment, InvoiceStatus, PaymentMode, RecipientType,
@@ -454,7 +454,7 @@ function InvoiceForm({ matter, onSave, onCancel }: {
   const [billable, setBillable]       = useState<BillableItem[]>([]);
   const [customItems, setCustom]      = useState<LineItem[]>([]);
   const [gstRate, setGstRate]         = useState(18);
-  const [invoiceNum, setInvoiceNum]   = useState(`INV-${format(new Date(), "yyyyMM")}-001`);
+  const [invoiceNum, setInvoiceNum]   = useState("");
   const [invoiceDate, setInvDate]     = useState(today());
   const [dueDate, setDueDate]         = useState(format(addDays(new Date(), 30), "yyyy-MM-dd"));
   const [notes, setNotes]             = useState("");
@@ -473,9 +473,10 @@ function InvoiceForm({ matter, onSave, onCancel }: {
         fetchAllBillableTimeEntries(matter.id),
         loadProfile(),
       ]);
-      if (prof?.invoicePrefix) {
-        setInvoiceNum(`${prof.invoicePrefix}-${format(new Date(), "yyyyMM")}-001`);
-      }
+      // Auto-generate the next sequential invoice number from the DB
+      const prefix = prof?.invoicePrefix || "INV";
+      const suggestedNum = await nextInvoiceNumber(prefix);
+      setInvoiceNum(suggestedNum);
       if (prof?.defaultGstRate !== undefined) {
         setGstRate(prof.defaultGstRate);
       }

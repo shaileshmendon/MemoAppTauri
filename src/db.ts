@@ -198,6 +198,40 @@ async function migrate(db: Database) {
       value TEXT NOT NULL
     );
   `);
+  // ── Invoice number uniqueness ──────────────────────────────────────────
+  // SQLite cannot add a UNIQUE constraint to an existing column via ALTER TABLE.
+  // Instead we create a UNIQUE INDEX — idempotent via IF NOT EXISTS.
+  //
+  // DUPLICATE REMEDIATION: Before creating the index, detect and fix any
+  // existing duplicate invoice_numbers by appending "-DUP-{rowid}" to all
+  // but the earliest occurrence. This prevents the CREATE UNIQUE INDEX from
+  // failing on existing databases.
+  const dupes = await db.select<{ invoice_number: string; cnt: number }[]>(`
+    SELECT invoice_number, COUNT(*) AS cnt
+    FROM invoices
+    GROUP BY invoice_number
+    HAVING cnt > 1
+  `);
+  for (const { invoice_number } of dupes) {
+    // Keep the oldest (lowest rowid) untouched; rename the rest.
+    const rows = await db.select<{ id: string }[]>(
+      `SELECT id FROM invoices WHERE invoice_number = ? ORDER BY rowid ASC`,
+      [invoice_number]
+    );
+    for (let i = 1; i < rows.length; i++) {
+      const suffix = `-DUP-${i}`;
+      await db.execute(
+        `UPDATE invoices SET invoice_number = invoice_number || ? WHERE id = ?`,
+        [suffix, rows[i].id]
+      );
+    }
+  }
+  // Now safe to create the unique index (IF NOT EXISTS = safe on re-runs)
+  await db.execute(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_invoices_invoice_number
+    ON invoices (invoice_number)
+  `);
+
   await db.execute(`PRAGMA foreign_keys = ON;`);
 }
 
@@ -396,6 +430,42 @@ export async function fetchInvoices(matterId: string): Promise<Invoice[]> {
     [matterId]
   );
   return applyEffectiveStatus(rows);
+}
+
+/**
+ * Generate the next available invoice number for the current month.
+ *
+ * Format: {prefix}-{YYYYMM}-{NNN}
+ *   e.g.  INV-202606-001, INV-202606-002 …
+ *
+ * Finds the highest existing sequence number for the given prefix+month
+ * combination and increments it. If none exist, starts at 001.
+ * The returned number is NOT yet saved — it is a suggestion for the form.
+ * Uniqueness is enforced at DB level by idx_invoices_invoice_number.
+ */
+export async function nextInvoiceNumber(
+  prefix: string = "INV",
+  date: Date = new Date(),
+): Promise<string> {
+  const db = await getDb();
+  const yyyymm = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}`;
+  const pattern = `${prefix}-${yyyymm}-%`;
+
+  const rows = await db.select<{ invoice_number: string }[]>(
+    `SELECT invoice_number FROM invoices WHERE invoice_number LIKE ? ORDER BY invoice_number DESC LIMIT 50`,
+    [pattern]
+  );
+
+  // Extract the trailing numeric sequence from each matching number
+  let maxSeq = 0;
+  for (const { invoice_number } of rows) {
+    const parts = invoice_number.split("-");
+    const seq = parseInt(parts[parts.length - 1], 10);
+    if (!isNaN(seq) && seq > maxSeq) maxSeq = seq;
+  }
+
+  const next = String(maxSeq + 1).padStart(3, "0");
+  return `${prefix}-${yyyymm}-${next}`;
 }
 
 export async function insertInvoice(inv: Invoice): Promise<void> {
