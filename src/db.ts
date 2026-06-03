@@ -1,5 +1,6 @@
 import Database from "@tauri-apps/plugin-sql";
 import type { Matter, TimeEntry, Appearance, Invoice, Payment, Client, Firm, Profile, MatterParty, ContactPerson } from "./types";
+import { applyEffectiveStatus } from "./lib/invoiceUtils";
 
 let _db: Database | null = null;
 
@@ -390,10 +391,11 @@ export async function deleteAppearance(id: string): Promise<void> {
 
 export async function fetchInvoices(matterId: string): Promise<Invoice[]> {
   const db = await getDb();
-  return db.select<Invoice[]>(
+  const rows = await db.select<Invoice[]>(
     "SELECT * FROM invoices WHERE matter_id = ? ORDER BY invoice_date DESC",
     [matterId]
   );
+  return applyEffectiveStatus(rows);
 }
 
 export async function insertInvoice(inv: Invoice): Promise<void> {
@@ -442,13 +444,16 @@ export interface UnpaidInvoiceRow extends Invoice {
 
 export async function fetchAllUnpaidInvoices(): Promise<UnpaidInvoiceRow[]> {
   const db = await getDb();
-  return db.select<UnpaidInvoiceRow[]>(`
+  // Fetch sent/partially_paid/overdue — effectiveStatus will auto-promote
+  // sent/partially_paid to overdue if past due_date at read time.
+  const rows = await db.select<UnpaidInvoiceRow[]>(`
     SELECT i.*, m.case_title, m.client_name, m.firm_name
     FROM invoices i
     JOIN matters m ON i.matter_id = m.id
     WHERE i.status IN ('sent', 'partially_paid', 'overdue')
     ORDER BY i.due_date ASC
   `);
+  return applyEffectiveStatus(rows);
 }
 
 // ─── Payments ──────────────────────────────────────────────────────────────

@@ -51,15 +51,13 @@ export default function AboutModal({ onClose }: Props) {
               <InfoRow label="Price"      value="₹0 — Free forever" />
             </div>
 
-            {/* Support the developer — hidden for now */}
-            {false && (
-              <button
-                onClick={() => setShowSupport(true)}
-                className="w-full flex items-center justify-center gap-2 py-2.5 bg-neutral-900 text-white rounded-xl text-sm font-semibold hover:bg-neutral-800 transition-colors">
-                <Heart size={14} fill="white" />
-                Support the Developer
-              </button>
-            )}
+            {/* Support the developer */}
+            <button
+              onClick={() => setShowSupport(true)}
+              className="w-full flex items-center justify-center gap-2 py-2.5 bg-neutral-900 text-white rounded-xl text-sm font-semibold hover:bg-neutral-800 transition-colors">
+              <Heart size={14} fill="white" />
+              Support the Developer
+            </button>
 
             {/* Support email */}
             <div className="bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-3 text-center">

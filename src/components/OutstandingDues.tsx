@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { format, differenceInDays } from "date-fns";
+import { format } from "date-fns";
+import { daysOverdue as calcDaysOverdue } from "../lib/invoiceUtils";
 import {
   AlertCircle, Clock, CheckCircle2, RefreshCw, Plus, Trash2,
   Banknote, FileText,
@@ -107,14 +108,11 @@ export default function OutstandingDues() {
 
   useEffect(() => { load(); }, []);
 
-  const todayDate = new Date();
-  todayDate.setHours(0, 0, 0, 0);
-
-  const annotated = invoices.map((inv) => {
-    const due = new Date(inv.due_date);
-    due.setHours(0, 0, 0, 0);
-    return { ...inv, daysOverdue: differenceInDays(todayDate, due) };
-  });
+  // daysOverdue uses localDateString() — timezone-safe, consistent with effectiveStatus
+  const annotated = invoices.map((inv) => ({
+    ...inv,
+    daysOverdue: calcDaysOverdue(inv),
+  }));
 
   const totalOutstanding = annotated.reduce((s, i) => s + i.total_amount, 0);
   const overdueCount     = annotated.filter((i) => i.daysOverdue > 0).length;
