@@ -23,6 +23,9 @@ import QuickCapture from "./components/QuickCapture";
 import Inbox from "./components/Inbox";
 import ShortcutHelpModal from "./components/ShortcutHelpModal";
 import ReportsPage from "./components/reports/ReportsPage";
+import UpdateModal from "./components/UpdateModal";
+import { checkForUpdates, isDueForCheck, CHECK_INTERVAL } from "./lib/updates/updateService";
+import type { UpdateInfo } from "./lib/updates/updateService";
 import { isProfileSetup, loadProfile, getLock, fetchInboxCount, getSettingValue, setSettingValue } from "./db";
 import type { AppLock } from "./db";
 import type { Matter, NavSection, Profile } from "./types";
@@ -51,6 +54,8 @@ export default function App() {
   const [reportsKey, setReportsKey] = useState(0);
   /** First-run: show keyboard announcement banner once after v1.1 upgrade */
   const [showKeyboardAnnouncement, setShowKeyboardAnnouncement] = useState(false);
+  /** Pending update info — set when a newer version is detected */
+  const [pendingUpdate, setPendingUpdate] = useState<UpdateInfo | null>(null);
 
   useEffect(() => {
     Promise.all([isProfileSetup(), loadProfile(), getLock()]).then(([ready, prof, lk]) => {
@@ -64,6 +69,23 @@ export default function App() {
     getSettingValue("keyboard_announced").then(v => {
       if (!v) setShowKeyboardAnnouncement(true);
     });
+
+    // Update check on launch (after a short delay so the UI is ready)
+    setTimeout(async () => {
+      const info = await checkForUpdates();
+      if (info) setPendingUpdate(info);
+    }, 3000);
+  }, []);
+
+  // Periodic 24-hour update check
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (await isDueForCheck()) {
+        const info = await checkForUpdates();
+        if (info) setPendingUpdate(info);
+      }
+    }, CHECK_INTERVAL);
+    return () => clearInterval(interval);
   }, []);
 
   const dismissKeyboardAnnouncement = () => {
@@ -325,6 +347,14 @@ export default function App() {
 
       {/* Shortcut Help modal — ⌘/ */}
       {showHelp && <ShortcutHelpModal onClose={() => setShowHelp(false)} />}
+
+      {/* Update available modal */}
+      {pendingUpdate && (
+        <UpdateModal
+          update={pendingUpdate}
+          onClose={() => setPendingUpdate(null)}
+        />
+      )}
 
       {/* First-run keyboard announcement — shown once after v1.1 upgrade */}
       {showKeyboardAnnouncement && (

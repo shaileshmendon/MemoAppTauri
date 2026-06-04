@@ -1,7 +1,11 @@
 import { useState, useEffect } from "react";
-import { Settings, Check, FlaskConical, Trash2, AlertTriangle, Download, Upload, ShieldCheck, RotateCcw, IndianRupee } from "lucide-react";
+import { Settings, Check, FlaskConical, Trash2, AlertTriangle, Download, Upload, ShieldCheck, RotateCcw, IndianRupee, RefreshCw, Loader2, CheckCircle2, WifiOff } from "lucide-react";
 import { saveProfile, exportAllData, importAllData, loadFeeSchedule, saveFeeSchedule } from "../db";
 import type { BackupManifest } from "../db";
+import { checkForUpdates, getLastCheckDate, getSkippedVersion, clearUpdatePreferences } from "../lib/updates/updateService";
+import type { UpdateInfo } from "../lib/updates/updateService";
+import UpdateModal from "./UpdateModal";
+import { getVersion } from "@tauri-apps/api/app";
 import { loadDemoData, removeAllData } from "../demoData";
 import { save as dialogSave, open as dialogOpen } from "@tauri-apps/plugin-dialog";
 import { writeTextFile, readTextFile } from "@tauri-apps/plugin-fs";
@@ -31,6 +35,7 @@ const SECTIONS = [
   { key: "backup",       label: "Backup & Restore" },
   { key: "security",     label: "Security" },
   { key: "demo",         label: "Demo Data" },
+  { key: "about",        label: "About" },
 ] as const;
 type Section = typeof SECTIONS[number]["key"];
 
@@ -257,6 +262,15 @@ export default function SettingsPage({ profile, onSaved, onLockChanged }: Props)
             {key === "security" ? "Security & Lock" : "Demo Data"}
           </button>
         ))}
+        <div className="border-t border-neutral-200 my-3" />
+        <button onClick={() => setActiveSection("about")}
+          className={`w-full text-left px-3 py-2 rounded-lg text-sm mb-0.5 transition-colors ${
+            activeSection === "about"
+              ? "bg-neutral-100 text-neutral-900 font-medium"
+              : "text-neutral-600 hover:bg-neutral-100"
+          }`}>
+          About
+        </button>
       </aside>
 
       {/* Main form — designer gets full width, others are constrained */}
@@ -884,9 +898,150 @@ export default function SettingsPage({ profile, onSaved, onLockChanged }: Props)
 
             </div>
           )}
+          {activeSection === "about" && (
+            <AboutSection />
+          )}
+
         </div>
       </div>
       )}
+    </div>
+  );
+}
+
+// ── About section ─────────────────────────────────────────────────────────────
+
+function AboutSection() {
+  const [appVersion,   setAppVersion]   = useState<string>("…");
+  const [lastCheck,    setLastCheck]    = useState<string>("Never");
+  const [skipped,      setSkipped]      = useState<string | null>(null);
+  const [checking,     setChecking]     = useState(false);
+  const [checkResult,  setCheckResult]  = useState<"up_to_date" | "update_found" | "offline" | null>(null);
+  const [updateInfo,   setUpdateInfo]   = useState<UpdateInfo | null>(null);
+
+  useEffect(() => {
+    getVersion().then(setAppVersion).catch(() => setAppVersion("1.2.1"));
+    getLastCheckDate().then(d => setLastCheck(d ? d.toLocaleString() : "Never"));
+    getSkippedVersion().then(v => setSkipped(v || null));
+  }, []);
+
+  const handleCheck = async () => {
+    setChecking(true);
+    setCheckResult(null);
+    try {
+      const info = await checkForUpdates({ force: true });
+      if (info) {
+        setUpdateInfo(info);
+        setCheckResult("update_found");
+      } else {
+        setCheckResult("up_to_date");
+      }
+      setLastCheck(new Date().toLocaleString());
+    } catch {
+      setCheckResult("offline");
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  const handleClearSkipped = async () => {
+    await clearUpdatePreferences();
+    setSkipped(null);
+    setCheckResult(null);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Update modal triggered from manual check */}
+      {updateInfo && (
+        <UpdateModal update={updateInfo} onClose={() => setUpdateInfo(null)} />
+      )}
+
+      {/* App identity */}
+      <div>
+        <p className="text-sm font-semibold text-neutral-800 mb-3">Application</p>
+        <div className="bg-neutral-50 rounded-xl overflow-hidden divide-y divide-neutral-100">
+          <InfoRow label="App Name"        value="Memo" />
+          <InfoRow label="Version"         value={`v${appVersion}`} />
+          <InfoRow label="Platform"        value="macOS" />
+          <InfoRow label="Last Update Check" value={lastCheck} />
+          {skipped && (
+            <div className="flex items-center justify-between px-4 py-2.5">
+              <span className="text-sm text-neutral-600">Skipped Version</span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-neutral-400">v{skipped}</span>
+                <button
+                  onClick={handleClearSkipped}
+                  className="text-xs text-blue-600 hover:text-blue-700"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Update check */}
+      <div>
+        <p className="text-sm font-semibold text-neutral-800 mb-3">Updates</p>
+        <div className="space-y-3">
+          <button
+            onClick={handleCheck}
+            disabled={checking}
+            className="flex items-center gap-2 px-4 py-2.5 bg-neutral-900 text-white text-sm font-medium rounded-xl hover:bg-neutral-700 disabled:opacity-50 transition-colors"
+          >
+            {checking
+              ? <Loader2 size={14} className="animate-spin" />
+              : <RefreshCw size={14} />
+            }
+            {checking ? "Checking…" : "Check for Updates"}
+          </button>
+
+          {checkResult === "up_to_date" && (
+            <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 rounded-xl px-3 py-2.5">
+              <CheckCircle2 size={14} />
+              You're on the latest version.
+            </div>
+          )}
+          {checkResult === "update_found" && (
+            <div className="flex items-center gap-2 text-sm text-blue-700 bg-blue-50 rounded-xl px-3 py-2.5">
+              <RefreshCw size={14} />
+              Update available — see the modal above.
+            </div>
+          )}
+          {checkResult === "offline" && (
+            <div className="flex items-center gap-2 text-sm text-neutral-600 bg-neutral-100 rounded-xl px-3 py-2.5">
+              <WifiOff size={14} />
+              Couldn't connect. Check your internet and try again.
+            </div>
+          )}
+
+          <p className="text-xs text-neutral-400">
+            Memo checks for updates automatically every 24 hours.
+            Updates require manual download — nothing is installed automatically.
+          </p>
+        </div>
+      </div>
+
+      {/* Legal */}
+      <div>
+        <p className="text-sm font-semibold text-neutral-800 mb-3">Legal</p>
+        <div className="bg-neutral-50 rounded-xl overflow-hidden divide-y divide-neutral-100">
+          <InfoRow label="Developer"  value="Shailesh Mendon" />
+          <InfoRow label="Contact"    value="ssmendon@icici" />
+          <InfoRow label="Website"    value="memoapp.in" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between px-4 py-2.5">
+      <span className="text-sm text-neutral-600">{label}</span>
+      <span className="text-sm text-neutral-400 tabular-nums">{value}</span>
     </div>
   );
 }

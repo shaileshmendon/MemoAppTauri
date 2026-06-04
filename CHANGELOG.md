@@ -5,6 +5,34 @@ Format: [Semantic Versioning](https://semver.org). Dates are YYYY-MM-DD.
 
 ---
 
+## [1.2.1] — 2026-06-04
+
+### Update Notifications — Phase 1
+
+#### Added
+- **`src/lib/updates/updateService.ts`** — Update check service
+  - Fetches `https://memoapp.in/releases/latest.json` on launch (3s delay) and every 24h
+  - Semver comparison — only notifies when remote > local
+  - User preferences: skip version, snooze 24h ("Remind Later")
+  - HTTPS-only URL validation; 8s fetch timeout; graceful offline handling
+  - `checkForUpdates(force?)` — main entry point; `isDueForCheck()` for periodic check
+- **`src/components/UpdateModal.tsx`** — "Update Available" modal
+  - Shows: current version → new version, release date, release notes
+  - Actions: Download Update (opens browser), Remind Me Later (24h snooze), Skip This Version
+  - Mandatory update support: hides dismiss options, shows required-update notice
+- **Settings → About** section (`SettingsPage.tsx`)
+  - Displays: app name, version, platform, last update check timestamp, skipped version
+  - **Check for Updates** button — force-checks ignoring snooze/skip
+  - Result banner: up to date / update found / offline
+- **`UPDATE_SYSTEM.md`** — complete architecture documentation
+
+#### Modified
+- `src/App.tsx` — launch check (3s delay) + 24h `setInterval`; `UpdateModal` rendered when update detected
+- `src/components/SettingsPage.tsx` — About section added to SECTIONS list
+- Version bumped to 1.2.1 in all version files
+
+---
+
 ## [1.2.0] — 2026-06-04
 
 ### Reports & Analytics — Phase 1

@@ -91,7 +91,7 @@ export default function Sidebar({ active, onChange, onAbout, onLock, inboxCount 
       </nav>
 
       <div className="px-3 py-3 border-t border-white/5 flex items-center justify-between">
-        <span className="text-xs text-neutral-600">v1.2.0</span>
+        <span className="text-xs text-neutral-600">v1.2.1</span>
         <div className="flex items-center gap-1">
           {onLock && (
             <button onClick={onLock}
