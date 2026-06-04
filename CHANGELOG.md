@@ -5,6 +5,109 @@ Format: [Semantic Versioning](https://semver.org). Dates are YYYY-MM-DD.
 
 ---
 
+## [1.2.0] — 2026-06-04
+
+### Reports & Analytics — Phase 1
+
+#### Navigation
+- Added **Reports** to the sidebar (`NavSection = "reports"`)
+- Keyboard shortcut `⌘6` navigates to Reports
+- Reports is a full-page section (no matter list panel shown)
+
+#### New Reports
+Four reports built for Indian advocates:
+
+1. **Invoice Register** (`InvoiceRegister.tsx`)
+   - Full invoice list for any period / FY
+   - Columns: Invoice No., Date, Client, Matter, Subtotal, CGST, SGST, IGST, Total, Status, Received, TDS, Outstanding
+   - Summary strip: invoice count, total invoiced, GST, collected, outstanding, TDS
+   - Filters: FY/Period, Status
+   - Export: CSV, Excel (.xlsx), Print/PDF
+
+2. **Outstanding Invoices** (`OutstandingInvoices.tsx`)
+   - All unpaid invoices as of today (sent + partially_paid + overdue)
+   - Ageing buckets: Not Yet Due / 0–30 / 31–60 / 61–90 / 90+ days
+   - Clickable bucket cards filter the table
+   - Summary strip: total outstanding, count, oldest invoice date, average days overdue
+   - Export: CSV, Excel with separate Ageing Analysis sheet, Print/PDF
+
+3. **Revenue Summary** (`RevenueSummary.tsx`)
+   - Month-by-month invoiced vs collected
+   - Inline bar chart per month (invoiced in blue, collected in green)
+   - Collection rate % per month + overall
+   - Summary: total invoiced, collected, outstanding, GST, TDS, collection rate %
+   - Supports: Full Year, Q1–Q4, H1/H2, This Month, Custom range
+   - Export: CSV, Excel with Summary sheet, Print/PDF
+
+4. **Collections Follow-Up** (`CollectionsFollowUp.tsx`)
+   - Overdue invoices with client contact details (name, phone, email)
+   - Rows highlighted red for 90+ day invoices
+   - Summary: overdue count, total outstanding, critical (90d+) count and amount
+   - Export: CSV, Excel, Print/PDF
+
+#### Accountant Package
+- **`AccountantPackage.tsx`** — generates a single `.xlsx` workbook with 6 sheets:
+  1. Invoice Register
+  2. Outstanding Invoices
+  3. Ageing Analysis (bucket totals + percentages)
+  4. Revenue Summary
+  5. Payments Register
+  6. Client Summary
+- Parallel data fetch with per-sheet progress indicators
+- Named: `Accountant_Package_[Period].xlsx`
+
+#### Excel Export (ExcelJS 4.4.0)
+All reports support `.xlsx` export with:
+- Frozen header row
+- Auto-filters on all columns
+- Column width estimation per type
+- INR currency format (`₹#,##0.00`)
+- Date format (`DD-MMM-YYYY`)
+- Bold grey header row
+- Bold total row at bottom
+- Thin border on all cells
+
+#### CSV Export
+- UTF-8 BOM (Excel-compatible, ₹ displays correctly)
+- Raw numeric values (not formatted) for spreadsheet calculations
+- ISO dates (`YYYY-MM-DD`)
+
+#### Financial Year Support (`financialYear.ts`)
+- Indian FY: April 1 → March 31
+- `currentFY()` — auto-detects current FY
+- `fyDateRange(fy)` — converts "2025-26" → date range
+- `fyList(n)` — last N financial years for dropdown
+- `periodDateRange(fy, preset)` — Q1/Q2/Q3/Q4/H1/H2/full_fy/this_month/custom
+
+#### New files
+- `src/lib/reports/financialYear.ts`
+- `src/lib/reports/engine.ts` — 6 SQL report queries
+- `src/lib/reports/csvExport.ts`
+- `src/lib/reports/excelExport.ts`
+- `src/components/reports/ReportsPage.tsx`
+- `src/components/reports/ReportShell.tsx`
+- `src/components/reports/ReportFilters.tsx`
+- `src/components/reports/InvoiceRegister.tsx`
+- `src/components/reports/OutstandingInvoices.tsx`
+- `src/components/reports/RevenueSummary.tsx`
+- `src/components/reports/CollectionsFollowUp.tsx`
+- `src/components/reports/AccountantPackage.tsx`
+- `REPORTS_USER_GUIDE.md`
+
+#### Modified files
+- `src/types.ts` — `NavSection` gains `"reports"`
+- `src/lib/keyboard/shortcuts.ts` — `REPORTS: "meta+6"`
+- `src/components/Sidebar.tsx` — Reports entry added
+- `src/App.tsx` — ⌘6 shortcut, `ReportsPage` rendered
+- `KEYBOARD_SHORTCUTS.md` — ⌘6 documented
+- `FEATURE_CATALOG.md` — Reports module documented
+- `CHANGELOG.md` — this entry
+
+#### Dependencies
+- Added: `exceljs@4.4.0`
+
+---
+
 ## [1.0.2] — 2026-06-03
 
 ### Unified Work Done Workflow

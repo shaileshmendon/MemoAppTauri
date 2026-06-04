@@ -47,6 +47,7 @@ export const SHORTCUTS = {
   CLIENTS:         { key: "meta+3",       description: "Go to Clients",           group: "Global Navigation" },
   FIRMS:           { key: "meta+4",       description: "Go to Firms",             group: "Global Navigation" },
   OUTSTANDING:     { key: "meta+5",       description: "Go to Outstanding Dues",  group: "Global Navigation" },
+  REPORTS:         { key: "meta+6",       description: "Go to Reports",           group: "Global Navigation" },
   SETTINGS:        { key: "meta+,",       description: "Open Settings",           group: "Global Navigation" },
 
   // ── Quick actions ─────────────────────────────────────────────────────────

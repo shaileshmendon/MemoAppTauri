@@ -1,7 +1,7 @@
 # Memo App — Keyboard Shortcuts
 
-> Version: v1.1.1  
-> Last updated: 2026-06-03
+> Version: v1.2.0  
+> Last updated: 2026-06-04
 
 Memo is designed for keyboard-first operation. All primary workflows can be completed without a mouse.
 
@@ -18,6 +18,7 @@ Available from any screen. Suppressed while typing in text fields.
 | `⌘3` | Go to Clients |
 | `⌘4` | Go to AOR / Firms |
 | `⌘5` | Go to Outstanding Dues |
+| `⌘6` | Go to Reports |
 | `⌘,` | Open Settings |
 
 ---

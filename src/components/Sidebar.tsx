@@ -1,4 +1,4 @@
-import { Scale, AlertCircle, LayoutDashboard, Users, Building2, Settings, Info, Lock, ReceiptText, Inbox, Zap } from "lucide-react";
+import { Scale, AlertCircle, LayoutDashboard, Users, Building2, Settings, Info, Lock, ReceiptText, Inbox, Zap, BarChart3 } from "lucide-react";
 import type { NavSection } from "../types";
 import { ShortcutBadge } from "./ShortcutBadge";
 import { SHORTCUTS } from "../lib/keyboard/shortcuts";
@@ -18,6 +18,7 @@ const items: { id: NavSection; label: string; icon: React.ReactNode; group?: str
   { id: "matters",        label: "Matters",          icon: <Scale size={18} />,            group: "Work", shortcut: SHORTCUTS.MATTERS.key },
   { id: "outstanding",    label: "Outstanding Dues", icon: <AlertCircle size={18} />,     group: "Work", shortcut: SHORTCUTS.OUTSTANDING.key },
   { id: "record_payment", label: "Record Payment",   icon: <ReceiptText size={18} />,     group: "Work" },
+  { id: "reports",        label: "Reports",          icon: <BarChart3 size={18} />,        group: "Work", shortcut: SHORTCUTS.REPORTS.key },
   { id: "clients",        label: "Clients",          icon: <Users size={18} />,            group: "Contacts", shortcut: SHORTCUTS.CLIENTS.key },
   { id: "firms",          label: "AOR / Firms",      icon: <Building2 size={18} />,       group: "Contacts", shortcut: SHORTCUTS.FIRMS.key },
   { id: "settings",       label: "Settings",         icon: <Settings size={18} />,        group: "Account", shortcut: SHORTCUTS.SETTINGS.key },
@@ -90,7 +91,7 @@ export default function Sidebar({ active, onChange, onAbout, onLock, inboxCount 
       </nav>
 
       <div className="px-3 py-3 border-t border-white/5 flex items-center justify-between">
-        <span className="text-xs text-neutral-600">v1.1.2</span>
+        <span className="text-xs text-neutral-600">v1.2.0</span>
         <div className="flex items-center gap-1">
           {onLock && (
             <button onClick={onLock}

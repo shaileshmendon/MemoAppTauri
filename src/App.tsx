@@ -22,6 +22,7 @@ import LockScreen from "./components/LockScreen";
 import QuickCapture from "./components/QuickCapture";
 import Inbox from "./components/Inbox";
 import ShortcutHelpModal from "./components/ShortcutHelpModal";
+import ReportsPage from "./components/reports/ReportsPage";
 import { isProfileSetup, loadProfile, getLock, fetchInboxCount, getSettingValue, setSettingValue } from "./db";
 import type { AppLock } from "./db";
 import type { Matter, NavSection, Profile } from "./types";
@@ -101,6 +102,7 @@ export default function App() {
     { key: SHORTCUTS.CLIENTS.key,     handler: () => handleNavChange("clients") },
     { key: SHORTCUTS.FIRMS.key,       handler: () => handleNavChange("firms") },
     { key: SHORTCUTS.OUTSTANDING.key, handler: () => handleNavChange("outstanding") },
+    { key: SHORTCUTS.REPORTS.key,     handler: () => handleNavChange("reports") },
     { key: SHORTCUTS.SETTINGS.key,    handler: () => handleNavChange("settings") },
     // Quick Capture + Help
     { key: SHORTCUTS.QUICK_CAPTURE.key, handler: () => setShowCapture(c => !c) },
@@ -204,6 +206,7 @@ export default function App() {
     if (nav === "clients")     return <ContactList type="client" isKeyboardActive={!showCapture} />;
     if (nav === "firms")       return <ContactList type="firm"   isKeyboardActive={!showCapture} />;
     if (nav === "settings")    return <SettingsPage profile={profile} onSaved={handleProfileSaved} onLockChanged={handleLockChanged} />;
+    if (nav === "reports")     return <ReportsPage />;
 
     // New matter form
     if (isNew) {
@@ -273,7 +276,7 @@ export default function App() {
     );
   };
 
-  const showMatterList = !["dashboard", "outstanding", "record_payment", "inbox", "clients", "firms", "settings"].includes(nav);
+  const showMatterList = !["dashboard", "outstanding", "record_payment", "inbox", "clients", "firms", "settings", "reports"].includes(nav);
 
   // Show splash while checking
   if (profileReady === null || lock === "loading") {
