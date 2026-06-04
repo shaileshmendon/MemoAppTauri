@@ -47,6 +47,8 @@ export default function App() {
   const [inboxCount, setInboxCount] = useState(0);
   /** Invoice ID to auto-expand when the Invoices tab opens after Bill Unbilled Work. */
   const [pendingInvoiceId, setPendingInvoiceId] = useState<string | null>(null);
+  /** Incremented each time ⌘6 is pressed while already on Reports — forces landing page reset */
+  const [reportsKey, setReportsKey] = useState(0);
   /** First-run: show keyboard announcement banner once after v1.1 upgrade */
   const [showKeyboardAnnouncement, setShowKeyboardAnnouncement] = useState(false);
 
@@ -102,7 +104,7 @@ export default function App() {
     { key: SHORTCUTS.CLIENTS.key,     handler: () => handleNavChange("clients") },
     { key: SHORTCUTS.FIRMS.key,       handler: () => handleNavChange("firms") },
     { key: SHORTCUTS.OUTSTANDING.key, handler: () => handleNavChange("outstanding") },
-    { key: SHORTCUTS.REPORTS.key,     handler: () => handleNavChange("reports") },
+    { key: SHORTCUTS.REPORTS.key,     handler: () => { if (nav === "reports") setReportsKey(k => k + 1); else handleNavChange("reports"); } },
     { key: SHORTCUTS.SETTINGS.key,    handler: () => handleNavChange("settings") },
     // Quick Capture + Help
     { key: SHORTCUTS.QUICK_CAPTURE.key, handler: () => setShowCapture(c => !c) },
@@ -206,7 +208,7 @@ export default function App() {
     if (nav === "clients")     return <ContactList type="client" isKeyboardActive={!showCapture} />;
     if (nav === "firms")       return <ContactList type="firm"   isKeyboardActive={!showCapture} />;
     if (nav === "settings")    return <SettingsPage profile={profile} onSaved={handleProfileSaved} onLockChanged={handleLockChanged} />;
-    if (nav === "reports")     return <ReportsPage />;
+    if (nav === "reports")     return <ReportsPage key={reportsKey} />;
 
     // New matter form
     if (isNew) {
