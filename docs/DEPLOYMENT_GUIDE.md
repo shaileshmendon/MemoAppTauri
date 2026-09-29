@@ -89,7 +89,69 @@ src-tauri/target/release/bundle/
     └── Memo_1.0.0_aarch64.dmg      # Installer DMG (share this)
 ```
 
-The DMG is the file to distribute to users.
+`npm run tauri build` produces a DMG that is **signed but not notarized**. Do not distribute it directly — use the release script below.
+
+---
+
+## Code Signing & Notarization
+
+Memo is distributed outside the Mac App Store, so it must be signed with a **Developer ID Application** certificate and **notarized** by Apple. Without notarization, macOS shows "Memo is damaged and can't be opened" on downloaded copies.
+
+| Item | Value |
+|---|---|
+| Apple Developer Team ID | `P5JTNCTC7S` |
+| Signing identity | `Developer ID Application: Shailesh Mendon (P5JTNCTC7S)` |
+| Set in | `src-tauri/tauri.conf.json` → `bundle.macOS.signingIdentity` |
+| Notarization credentials | Keychain profile `memo-notary` (stored with `notarytool`) |
+| Certificate expires | 11 Jun 2031 |
+
+### Release build (one command)
+
+```bash
+./scripts/build-and-notarize.sh
+```
+
+The script (`scripts/build-and-notarize.sh`) runs, in order, and stops on the first failure:
+
+1. `npm run tauri build` — builds and signs `Memo.app` (Tauri also builds a DMG here; it is replaced in step 4).
+2. Zips `Memo.app`, submits it to Apple with `notarytool submit --wait`, and requires `status: Accepted`.
+3. `stapler staple` on `Memo.app` — embeds the notarization ticket so first launch needs no online check.
+4. Rebuilds the DMG around the stapled app using Tauri's `bundle_dmg.sh`, then signs the DMG.
+5. Notarizes and staples the DMG.
+6. Verifies: `spctl` on the DMG must report `source=Notarized Developer ID`, and `stapler validate` must pass on the `Memo.app` inside the mounted DMG.
+
+Notarization takes about 1–5 minutes per submission (two submissions per run). The finished file is:
+
+```
+src-tauri/target/release/bundle/dmg/Memo_<version>_aarch64.dmg
+```
+
+The script fails if Apple returns anything other than `Accepted`. To read Apple's rejection reasons, run `xcrun notarytool log <submission-id> --keychain-profile memo-notary`.
+
+### One-time setup (new machine)
+
+1. Install the Developer ID Application certificate and its private key in the login keychain (`security find-identity -v -p codesigning` must list it). The private key lives only on the Mac that generated the certificate signing request — back it up (Keychain Access → export as `.p12`) or you must issue a new certificate to build elsewhere.
+2. Create an app-specific password at appleid.apple.com → Sign-In and Security.
+3. Store the credentials:
+   ```bash
+   xcrun notarytool store-credentials "memo-notary" \
+     --apple-id "<apple-id-email>" \
+     --team-id "P5JTNCTC7S"
+   ```
+   Paste the app-specific password when prompted. Nothing secret is kept in the repo.
+
+### Verify a build manually
+
+```bash
+spctl -a -vvv -t install Memo_<version>_aarch64.dmg   # expect: accepted, Notarized Developer ID
+xcrun stapler validate Memo_<version>_aarch64.dmg     # expect: The validate action worked!
+```
+
+### Known notes
+
+- Tauri prints `skipping app notarization, no APPLE_ID & APPLE_PASSWORD…` during step 1. This is expected: the script notarizes with the keychain profile instead of environment variables.
+- The bundle identifier `com.memoapp.app` ends in `.app`, which Tauri warns about. Do not change it — that would break upgrades for installed copies.
+- If the certificate is renewed, update the identity string in `tauri.conf.json` and in `scripts/build-and-notarize.sh`.
 
 ---
 
@@ -160,8 +222,8 @@ await addIfMissing("matters", "new_column", "TEXT");
 ### 4. Build and test
 
 ```bash
-npx tsc --noEmit         # Type check
-npm run tauri build      # Build
+npx tsc --noEmit                   # Type check
+./scripts/build-and-notarize.sh    # Build, sign, notarize, staple, verify
 # Test on Mac with existing database
 # Test on fresh Mac
 ```
@@ -317,22 +379,25 @@ const result = await invoke<MyResult>("my_command", { param: "hello" });
 ### File to Distribute
 
 ```
-src-tauri/target/release/bundle/dmg/Memo_1.0.0_aarch64.dmg
+src-tauri/target/release/bundle/dmg/Memo_<version>_aarch64.dmg
 ```
 
-### Sharing Options
+Only distribute a DMG produced by `./scripts/build-and-notarize.sh`. An un-notarized DMG triggers "app is damaged" for downloaders.
 
-- Email attachment (DMG is ~15–20 MB)
-- iCloud Drive / Google Drive link
-- USB drive
+### Publishing
+
+1. Create (or edit) the GitHub Release `v<version>` on `shaileshmendon/MemoAppTauri` and attach the DMG. When replacing an existing asset, keep the filename identical.
+2. Update `releases/latest.json` in the `memo-website` repo (version, date, `downloadUrl`, notes) and push — this is what triggers the in-app update prompt. See `UPDATE_SYSTEM.md`.
+3. Confirm the published file: download it from the release URL and run `spctl -a -vvv -t install` on it.
 
 ### User Instructions to Include
 
 > 1. Double-click the DMG file
 > 2. Drag Memo to your Applications folder
 > 3. Eject the DMG
-> 4. Right-click Memo.app → Open (first time only, to bypass macOS security)
-> 5. Click Open in the dialog that appears
+> 4. Open Memo from Applications
+
+No right-click → Open step is needed for notarized builds. Builds before v1.2.1 were not notarized; users on those versions may still need `xattr -cr /Applications/Memo.app`.
 
 ---
 

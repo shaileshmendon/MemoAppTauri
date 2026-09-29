@@ -201,7 +201,7 @@ The app's CSP is set to `null` (disabled):
 | Database unencrypted | Medium | Any macOS user who can access the Library folder can read the database. Mitigation: use macOS FileVault. |
 | Backup files unencrypted | Medium | JSON backups are plain text. Users should store in protected locations. |
 | No PIN recovery | Low (UX risk) | Forgotten PINs require database manipulation or full reset. |
-| App not code-signed | Medium (distribution) | Gatekeeper blocks on first launch; users must right-click → Open. Not a runtime security issue. |
+| Update manifest not signed | Low | `latest.json` is fetched over HTTPS and its download URL must be HTTPS, but the manifest itself carries no signature. The downloaded DMG is protected by Apple notarization (Gatekeeper), and nothing is installed automatically. |
 | CSP disabled | Low | No remote content loaded; default React output is escaped. |
 | No audit log | Low | No record of who made changes or when (beyond SQLite timestamps). |
 
@@ -216,7 +216,6 @@ The app's CSP is set to `null` (disabled):
 ### Medium-term
 - **SQLite encryption**: Use SQLCipher or an encrypted wrapper to protect the database file
 - **Encrypted backup files**: Password-protect JSON backups (AES-256)
-- **Code signing**: Obtain Apple Developer certificate for proper distribution without Gatekeeper warnings
 
 ### Long-term
 - **Biometric unlock**: Touch ID / Face ID via macOS LocalAuthentication

@@ -62,7 +62,8 @@ Every 24 hours (setInterval in App.tsx)
 | `notes` | Yes | Array of strings (may be empty) |
 
 **Hosting the manifest:**
-- Place at `https://memoapp.in/releases/latest.json`
+- Lives in the `memo-website` repo at `releases/latest.json`, served at `https://memoapp.in/releases/latest.json`
+- The DMG itself is hosted on GitHub Releases (`downloadUrl` points there)
 - Always reflects the single latest version
 - Update this file each time you publish a new release
 
@@ -133,10 +134,14 @@ Displays:
 
 ## Publishing a New Release
 
-1. Build the DMG: `npm run tauri build`
-2. Upload the DMG to `https://memoapp.in/releases/`
-3. Update `https://memoapp.in/releases/latest.json` with the new version, date, download URL, and release notes
-4. Within 24 hours, all users will see the update modal
+1. Bump the version in `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, `Sidebar.tsx`, `AboutModal.tsx`, `SupportModal.tsx`
+2. Build, sign, notarize and staple the DMG: `./scripts/build-and-notarize.sh` (see `docs/DEPLOYMENT_GUIDE.md` → Code Signing & Notarization)
+3. Attach the DMG to a GitHub Release `v<version>` on `shaileshmendon/MemoAppTauri`
+4. Update `releases/latest.json` in the `memo-website` repo with the new version, date, `downloadUrl` (the GitHub Release asset URL), and notes, then push — the site serves it at `https://memoapp.in/releases/latest.json`
+5. Download the DMG from the release URL and confirm `spctl -a -vvv -t install <dmg>` reports `Notarized Developer ID`
+6. Within 24 hours, all users will see the update modal
+
+Never point `downloadUrl` at a DMG that has not been notarized: a downloaded, un-notarized copy shows "app is damaged" on macOS.
 
 ---
 

@@ -26,6 +26,13 @@ Format: [Semantic Versioning](https://semver.org). Dates are YYYY-MM-DD.
   - Result banner: up to date / update found / offline
 - **`UPDATE_SYSTEM.md`** — complete architecture documentation
 
+#### Distribution — signing & notarization
+- The v1.2.1 DMG is signed with a Developer ID Application certificate and notarized by Apple, fixing the "Memo is damaged and can't be opened" error on downloaded copies
+- Notarization tickets are stapled to both the DMG and the `Memo.app` inside it, so first launch needs no online check
+- **`scripts/build-and-notarize.sh`** — one-command release build: build, notarize and staple the app, rebuild the DMG around it, notarize and staple the DMG, verify. Aborts unless Apple returns `Accepted`
+- `src-tauri/tauri.conf.json` — `bundle.macOS.signingIdentity` set
+- Docs: `docs/DEPLOYMENT_GUIDE.md` (new Code Signing & Notarization section, publishing steps), `docs/SECURITY.md`, `UPDATE_SYSTEM.md`
+
 #### Modified
 - `src/App.tsx` — launch check (3s delay) + 24h `setInterval`; `UpdateModal` rendered when update detected
 - `src/components/SettingsPage.tsx` — About section added to SECTIONS list
